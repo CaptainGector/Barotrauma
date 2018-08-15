@@ -1862,15 +1862,15 @@ namespace Barotrauma
             new uint[]{0x2a600,0x2fa1d},
         };
 
-        public static bool Compare(string a, string b)
+        public static bool Compare(string a,string b)
         {
             if (a.Equals(b, StringComparison.InvariantCulture)) return true;
             if (a.Length != b.Length) return false;
-            for (int i = 0; i < a.Length; i++)
+            for (int i=0;i<a.Length;i++)
             {
                 if (a[i] == b[i]) continue;
                 uint[] glyphGroup = homoglyphs.Find(g => g.Contains((uint)a[i]));
-                if (glyphGroup == null || !glyphGroup.Contains((uint)b[i])) return false;
+                if (glyphGroup==null || !glyphGroup.Contains((uint)b[i])) return false;
             }
             return true;
         }

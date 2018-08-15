@@ -147,10 +147,12 @@ namespace Barotrauma
                 BlendState.AlphaBlend,
                 SamplerState.LinearWrap, DepthStencilState.Default, null, null,
                 cam.Transform);
-            
 
-            if (backgroundSpriteManager != null) backgroundSpriteManager.DrawSprites(spriteBatch, cam);
-            if (backgroundCreatureManager != null) backgroundCreatureManager.Draw(spriteBatch);
+            if (GameMain.NilMod.RenderOther)
+            {
+                if (backgroundSpriteManager != null) backgroundSpriteManager.DrawSprites(spriteBatch, cam);
+                if (backgroundCreatureManager != null) backgroundCreatureManager.Draw(spriteBatch);
+            }
 
             Rectangle srcRect = new Rectangle(0, 0, 2048, 2048);
             Vector2 origin = new Vector2(cam.WorldView.X, -cam.WorldView.Y);
@@ -174,8 +176,11 @@ namespace Barotrauma
                 while (offsetS.Y <= -srcRect.Height * scale) offsetS.Y += srcRect.Height * scale;
                 while (offsetS.Y > 0.0f) offsetS.Y -= srcRect.Height * scale;
 
-                dustParticles.DrawTiled(spriteBatch, origin + offsetS, new Vector2(cam.WorldView.Width - offsetS.X, cam.WorldView.Height - offsetS.Y), 
-                    rect: srcRect, color: Color.White * alpha, textureScale: new Vector2(scale));
+                if (GameMain.NilMod.RenderOther)
+                {
+                    dustParticles.DrawTiled(spriteBatch, origin + offsetS, new Vector2(cam.WorldView.Width - offsetS.X, cam.WorldView.Height - offsetS.Y),
+                        rect: srcRect, color: Color.White * alpha, textureScale: new Vector2(scale));
+                }
             }
 
             spriteBatch.End();

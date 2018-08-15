@@ -17,7 +17,7 @@ namespace Barotrauma
         LocationTypes, 
         LevelGenerationParameters,
         RandomEvents, 
-        Missions, 
+        Missions,
         BackgroundCreaturePrefabs, BackgroundSpritePrefabs,
         Sounds,
         RuinConfig,
@@ -85,7 +85,7 @@ namespace Barotrauma
                 ContentType type;
                 if (!Enum.TryParse(subElement.Name.ToString(), true, out type))
                 {
-                    DebugConsole.ThrowError("Error in content package \""+name+"\" - \""+subElement.Name.ToString()+"\" is not a valid content type.");
+                    DebugConsole.ThrowError("Error in content package \"" + name + "\" - \"" + subElement.Name.ToString() + "\" is not a valid content type.");
                     continue;
                 }
                 files.Add(new ContentFile(subElement.GetAttributeString("file", ""), type));                
@@ -128,19 +128,20 @@ namespace Barotrauma
             doc.Add(new XElement("contentpackage", 
                 new XAttribute("name", name), 
                 new XAttribute("path", Path)));
-            
+
+
             foreach (ContentFile file in files)
             {
                 doc.Root.Add(new XElement(file.type.ToString(), new XAttribute("file", file.path)));
             }
-            
+
             doc.Save(System.IO.Path.Combine(filePath, name+".xml"));
         }
 
         private void CalculateHash()
         {
             List<byte[]> hashes = new List<byte[]>();
-            
+
             var md5 = MD5.Create();
             foreach (ContentFile file in files)
             {
@@ -160,11 +161,11 @@ namespace Barotrauma
                 }
              
             }
-            
-            byte[] bytes = new byte[hashes.Count * 16];
-            for (int i = 0; i < hashes.Count; i++)
+
+            byte[] bytes = new byte[hashes.Count*16];
+            for (int i = 0; i < hashes.Count; i++ )
             {
-                hashes[i].CopyTo(bytes, i * 16);
+                hashes[i].CopyTo(bytes, i*16);
             }
 
             md5Hash = new Md5Hash(bytes);

@@ -368,7 +368,7 @@ namespace Barotrauma.Sounds
                     Stop(i);
                 }
 
-                OpenTK.Audio.OpenAL.AL.DeleteSource(alSources[i]);                
+                OpenTK.Audio.OpenAL.AL.DeleteSource(alSources[i]);
                 ALHelper.Check(soundPath);
             }
 

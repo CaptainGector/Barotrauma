@@ -31,6 +31,8 @@ namespace Barotrauma.Items.Components
         private Vector2 avoidStrength;
 
         private float neutralBallastLevel;
+
+        public Character lastuser;
                 
         public bool AutoPilot
         {
@@ -128,6 +130,8 @@ namespace Barotrauma.Items.Components
                 }
             }
 
+            if (lastuser != null && lastuser.SelectedConstruction != item) lastuser = null;
+
             currPowerConsumption = powerConsumption;
 
             if (voltage < minVoltage && currPowerConsumption > 0.0f) return;
@@ -212,7 +216,7 @@ namespace Barotrauma.Items.Components
                         Vector2 diff = item.Submarine.WorldPosition - (Vector2)intersection;
 
                         float dist = diff.Length();
-                        //far enough or too close to normalize the diff -> ignore
+                        //far enough or too close to normalize the diff -> ignore 
                         if (dist > avoidRadius || dist < 0.00001f) continue;
 
                         float dot = item.Submarine.Velocity == Vector2.Zero ?
@@ -373,7 +377,15 @@ namespace Barotrauma.Items.Components
                 newTargetVelocity = new Vector2(msg.ReadFloat(), msg.ReadFloat());
             }
 
-            if (!item.CanClientAccess(c)) return; 
+            if (lastuser == null) lastuser = c.Character;
+
+            if (!item.CanClientAccess(c)) return;
+
+            if(lastuser != c.Character)
+            {
+                if (!CoroutineManager.IsCoroutineRunning("warnislocked_" + item.ID + "_" + c.Character.ID)) CoroutineManager.StartCoroutine(Warnislocked(c,item), "warnislocked_" + item.ID + "_" + c.Character.ID);
+                return;
+            }
 
             AutoPilot = autoPilot;
 
@@ -402,6 +414,27 @@ namespace Barotrauma.Items.Components
 
             //notify all clients of the changed state
             unsentChanges = true;
+        }
+
+        public static System.Collections.Generic.IEnumerable<Object> Warnislocked(Client c, Item item)
+        {
+            float Timer = 0f;
+            Steering steering = item.GetComponent<Barotrauma.Items.Components.Steering>();
+            var chatMsg = ChatMessage.Create(
+                "",
+                "The " + item.Name + " is in use by " + steering.lastuser.Name,
+                (ChatMessageType)ChatMessageType.Server,
+                null);
+
+            GameMain.Server.SendChatMessage(chatMsg, c);
+
+            while(Timer <= 3f)
+            {
+                Timer += CoroutineManager.DeltaTime;
+                yield return CoroutineStatus.Running;
+            }
+
+            yield return CoroutineStatus.Success;
         }
 
         public void ServerWrite(Lidgren.Network.NetBuffer msg, Barotrauma.Networking.Client c, object[] extraData = null)

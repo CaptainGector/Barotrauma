@@ -36,7 +36,7 @@ namespace Barotrauma.Items.Components
             get { return falseOutput; }
             set { falseOutput = value; }
         }
-
+        
         public AndComponent(Item item, XElement element)
             : base(item, element)
         {

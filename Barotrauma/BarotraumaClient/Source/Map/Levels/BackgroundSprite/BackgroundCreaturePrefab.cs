@@ -19,7 +19,7 @@ namespace Barotrauma
         public readonly bool DisableRotation;
 
         public readonly float Scale;
-        
+
         public BackgroundCreaturePrefab(XElement element)
         {
             Speed = element.GetAttributeFloat("speed", 1.0f);

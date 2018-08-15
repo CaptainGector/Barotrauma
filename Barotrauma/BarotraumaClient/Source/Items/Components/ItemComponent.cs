@@ -233,7 +233,7 @@ namespace Barotrauma.Items.Components
 
         private IEnumerable<object> DoDelayedCorrection(ServerNetObject type, NetBuffer buffer, float sendingTime, bool waitForMidRoundSync)
         {
-            while (GameMain.Client != null && 
+            while (GameMain.Client != null &&
                 (correctionTimer > 0.0f || (waitForMidRoundSync && GameMain.Client.MidRoundSyncing)))
             {
                 correctionTimer -= CoroutineManager.DeltaTime;

@@ -29,7 +29,7 @@ namespace Barotrauma
                     MathHelper.Clamp(value.Y, 0.01f, 10));
             }
         }
-        
+
         protected Vector2 textureOffset = Vector2.Zero;
         [Editable, Serialize("0.0, 0.0", true)]
         public Vector2 TextureOffset
@@ -104,9 +104,9 @@ namespace Barotrauma
 
             editingHUD = new GUIListBox(new Rectangle(x, y, width, height), "");
             editingHUD.UserData = this;
-            
+
             new SerializableEntityEditor(this, inGame, editingHUD, true);
-            
+
             editingHUD.SetDimensions(new Point(editingHUD.Rect.Width, MathHelper.Clamp(editingHUD.children.Sum(c => c.Rect.Height), 50, editingHUD.Rect.Height)));
 
             return editingHUD;
@@ -128,7 +128,7 @@ namespace Barotrauma
         {
             Draw(spriteBatch, false, false, damageEffect);
         }
-        
+
         private void Draw(SpriteBatch spriteBatch, bool editing, bool back = true, Effect damageEffect = null)
         {
             if (prefab.sprite == null) return;
@@ -149,7 +149,7 @@ namespace Barotrauma
             Vector2 textureOffset = this.textureOffset;
             if (flippedX) textureOffset.X = -textureOffset.X;
             if (flippedY) textureOffset.Y = -textureOffset.Y;
-            
+
             if (back && damageEffect == null)
             {
                 if (prefab.BackgroundSprite != null)
@@ -182,7 +182,7 @@ namespace Barotrauma
                 {
                     if (damageEffect != null)
                     {
-                        float newCutoff = sections[i].damage > 0 ? 
+                        float newCutoff = sections[i].damage > 0 ?
                             MathHelper.Lerp(0.2f, 0.65f, sections[i].damage / prefab.Health) : 0.0f;
 
                         if (Math.Abs(newCutoff - Submarine.DamageEffectCutoff) > 0.01f || color != Submarine.DamageEffectColor)
@@ -190,7 +190,7 @@ namespace Barotrauma
                             damageEffect.Parameters["aCutoff"].SetValue(newCutoff);
                             damageEffect.Parameters["cCutoff"].SetValue(newCutoff * 1.2f);
                             damageEffect.Parameters["inColor"].SetValue(color.ToVector4());
-                            
+
                             damageEffect.CurrentTechnique.Passes[0].Apply();
 
                             Submarine.DamageEffectCutoff = newCutoff;
@@ -201,7 +201,7 @@ namespace Barotrauma
                     Point sectionOffset = new Point(
                         Math.Abs(rect.Location.X - sections[i].rect.Location.X),
                         Math.Abs(rect.Location.Y - sections[i].rect.Location.Y));
-                    
+
                     if (flippedX && isHorizontal) sectionOffset.X = sections[i].rect.Right - rect.Right;
                     if (flippedY && !isHorizontal) sectionOffset.Y = (rect.Y - rect.Height) - (sections[i].rect.Y - sections[i].rect.Height);
 
@@ -213,7 +213,7 @@ namespace Barotrauma
                         new Vector2(sections[i].rect.X + drawOffset.X, -(sections[i].rect.Y + drawOffset.Y)),
                         new Vector2(sections[i].rect.Width, sections[i].rect.Height),
                         color: spriteColor,
-                        startOffset: sectionOffset, 
+                        startOffset: sectionOffset,
                         depth: depth,
                         textureScale: TextureScale);
                 }

@@ -24,13 +24,13 @@ namespace Barotrauma.Networking
 
         private State state;
         
-        private Submarine respawnShuttle;
+        public Submarine respawnShuttle;
         private Steering shuttleSteering;
         private List<Door> shuttleDoors;
 
-        //items created during respawn
-        //any respawn items left in the shuttle are removed when the shuttle despawns
-        private List<Item> respawnItems = new List<Item>();
+        //items created during respawn 
+        //any respawn items left in the shuttle are removed when the shuttle despawns 
+        private List<Item> respawnItems;
 
         public bool UsingShuttle
         {
@@ -82,9 +82,8 @@ namespace Barotrauma.Networking
             {
                 respawnShuttle = new Submarine(shuttle.FilePath, shuttle.MD5Hash.Hash, true);
                 respawnShuttle.Load(false);
+                respawnItems = new List<Item>();
 
-                ResetShuttle();
-                
                 //respawnShuttle.GodMode = true;
 
                 shuttleDoors = new List<Door>();
@@ -108,6 +107,8 @@ namespace Barotrauma.Networking
                         }
                     }
                 }
+
+                ResetShuttle();
             }
             else
             {
@@ -168,12 +169,18 @@ namespace Barotrauma.Networking
                 return;
             }
 
+            respawnShuttle.Velocity = Vector2.Zero;
+
+            shuttleSteering.AutoPilot = false;
+            shuttleSteering.MaintainPos = false;
+
             int characterToRespawnCount = GetClientsToRespawn().Count;
             int totalCharacterCount = server.ConnectedClients.Count;
-            if (server.Character != null)
+            if (server.CharacterInfo != null)
             {
                 totalCharacterCount++;
-                if (server.Character.IsDead) characterToRespawnCount++;
+                if (Character.Controlled == null && (server.Character == null
+                    || (server.Character != null && server.Character.IsDead))) characterToRespawnCount++;
             }
             bool startCountdown = (float)characterToRespawnCount >= Math.Max((float)totalCharacterCount * server.MinRespawnRatio, 1.0f);
 
@@ -218,13 +225,48 @@ namespace Barotrauma.Networking
 
             shuttleTransportTimer -= deltaTime;
 
+            /*
             if (shuttleTransportTimer + deltaTime > 15.0f && shuttleTransportTimer <= 15.0f &&
                 networkMember.Character != null &&
                 networkMember.Character.Submarine == respawnShuttle)
             {
                 networkMember.AddChatMessage("The shuttle will automatically return back to the outpost. Please leave the shuttle immediately.", ChatMessageType.Server);
             }
+            */
 
+            //15 second warning time
+            if (shuttleTransportTimer + deltaTime > 15.0f && shuttleTransportTimer <= 15.0f && NilMod.NilModEventChatter.ChatShuttleLeaving015 && maxTransportTime != 15.0f)
+            {
+                NilMod.NilModEventChatter.SendRespawnLeavingWarning(15f);
+            }
+            else if (shuttleTransportTimer + deltaTime > 30.0f && shuttleTransportTimer <= 30.0f && NilMod.NilModEventChatter.ChatShuttleLeaving030 && maxTransportTime != 30.0f)
+            {
+                NilMod.NilModEventChatter.SendRespawnLeavingWarning(30f);
+            }
+            else if (shuttleTransportTimer + deltaTime > 60.0f && shuttleTransportTimer <= 60.0f && NilMod.NilModEventChatter.ChatShuttleLeaving100 && maxTransportTime != 60.0f)
+            {
+                NilMod.NilModEventChatter.SendRespawnLeavingWarning(60f);
+            }
+            else if (shuttleTransportTimer + deltaTime > 90.0f && shuttleTransportTimer <= 90.0f && NilMod.NilModEventChatter.ChatShuttleLeaving130 && maxTransportTime != 90.0f)
+            {
+                NilMod.NilModEventChatter.SendRespawnLeavingWarning(90f);
+            }
+            else if (shuttleTransportTimer + deltaTime > 120.0f && shuttleTransportTimer <= 120.0f && NilMod.NilModEventChatter.ChatShuttleLeaving200 && maxTransportTime != 120.0f)
+            {
+                NilMod.NilModEventChatter.SendRespawnLeavingWarning(120f);
+            }
+            else if (shuttleTransportTimer + deltaTime > 180.0f && shuttleTransportTimer <= 180.0f && NilMod.NilModEventChatter.ChatShuttleLeaving300 && maxTransportTime != 180.0f)
+            {
+                NilMod.NilModEventChatter.SendRespawnLeavingWarning(180f);
+            }
+            else if (shuttleTransportTimer + deltaTime > 240.0f && shuttleTransportTimer <= 240.0f && NilMod.NilModEventChatter.ChatShuttleLeaving400 && maxTransportTime != 240.0f)
+            {
+                NilMod.NilModEventChatter.SendRespawnLeavingWarning(240f);
+            }
+            else if (shuttleTransportTimer + deltaTime > 300.0f && shuttleTransportTimer <= 300.0f && NilMod.NilModEventChatter.ChatShuttleLeaving500 && maxTransportTime != 300.0f)
+            {
+                NilMod.NilModEventChatter.SendRespawnLeavingWarning(300f);
+            }
 
             var server = networkMember as GameServer;
             if (server == null) return;
@@ -243,7 +285,14 @@ namespace Barotrauma.Networking
                 server.CreateEntityEvent(this);
 
                 CountdownStarted = false;
-                shuttleReturnTimer = maxTransportTime;
+                if (GameMain.NilMod.RespawnShuttleLeaveAtTime >= 0.0f)
+                {
+                    shuttleReturnTimer = GameMain.NilMod.RespawnShuttleLeaveAtTime;
+                }
+                else
+                {
+                    shuttleReturnTimer = maxTransportTime;
+                }
                 shuttleTransportTimer = maxTransportTime;
             }
         }
@@ -269,23 +318,42 @@ namespace Barotrauma.Networking
 
                 if (shuttleSteering != null)
                 {
-                    shuttleSteering.SetDestinationLevelStart();
+                    //Default return behaviour
+                    if (GameMain.NilMod.RespawnLeavingAutoPilotMode == 0)
+                    {
+                        shuttleSteering.SetDestinationLevelStart();
+                    }
+                    //Maintain Position
+                    else if (GameMain.NilMod.RespawnLeavingAutoPilotMode == 1)
+                    {
+                        shuttleSteering.AutoPilot = false;
+                        shuttleSteering.MaintainPos = false;
+                        shuttleSteering.MaintainPos = true;
+                        shuttleSteering.AutoPilot = true;
+                    }
+                    //Any other value does nothing aka 2, can code more later
                 }
 
-                foreach (Door door in shuttleDoors)
+                if (GameMain.NilMod.RespawnShuttleLeavingCloseDoors)
                 {
-                    if (door.IsOpen) door.SetState(false,false,true);
+                    foreach (Door door in shuttleDoors)
+                    {
+                        if (door.IsOpen) door.SetState(false, false, true);
+                    }
                 }
 
                 var server = networkMember as GameServer;
                 if (server == null) return;
-                
+
                 var shuttleGaps = Gap.GapList.FindAll(g => g.Submarine == respawnShuttle && g.ConnectedWall != null);
                 shuttleGaps.ForEach(g => Spawner.AddToRemoveQueue(g));
 
-                var dockingPorts = Item.ItemList.FindAll(i => i.Submarine == respawnShuttle && i.GetComponent<DockingPort>() != null);
-                dockingPorts.ForEach(d => d.GetComponent<DockingPort>().Undock());
-
+                if (GameMain.NilMod.RespawnShuttleLeavingUndock)
+                {
+                    var dockingPorts = Item.ItemList.FindAll(i => i.Submarine == respawnShuttle && i.GetComponent<DockingPort>() != null);
+                    dockingPorts.ForEach(d => d.GetComponent<DockingPort>().Undock());
+                }
+                
                 //shuttle has returned if the path has been traversed or the shuttle is close enough to the exit
 
                 if (!CoroutineManager.IsCoroutineRunning("forcepos"))
@@ -308,7 +376,7 @@ namespace Barotrauma.Networking
                     ResetShuttle();
 
                     state = State.Waiting;
-                    GameServer.Log("The respawn shuttle has left.", ServerLog.MessageType.Spawning);
+                    GameServer.Log("The respawn shuttle has left.", ServerLog.MessageType.Spawns);
                     server.CreateEntityEvent(this);
 
                     respawnTimer = respawnInterval;
@@ -334,7 +402,7 @@ namespace Barotrauma.Networking
                     shuttleSteering.TargetVelocity = Vector2.Zero;
                 }
 
-                GameServer.Log("Dispatching the respawn shuttle.", ServerLog.MessageType.Spawning);
+                GameServer.Log("Dispatching the respawn shuttle.", ServerLog.MessageType.Spawns);
 
                 RespawnCharacters();
 
@@ -344,7 +412,7 @@ namespace Barotrauma.Networking
             else
             {
                 state = State.Waiting;
-                GameServer.Log("Respawning everyone in main sub.", ServerLog.MessageType.Spawning);
+                GameServer.Log("Respawning everyone in main sub.", ServerLog.MessageType.Spawns);
                 server.CreateEntityEvent(this);
 
                 RespawnCharacters();
@@ -388,21 +456,35 @@ namespace Barotrauma.Networking
             foreach (Item item in Item.ItemList)
             {
                 if (item.Submarine != respawnShuttle) continue;
-                
-                //remove respawn items that have been left in the shuttle
+
+                //remove respawn items that have been left in the shuttle 
                 if (respawnItems.Contains(item))
                 {
-                    Spawner.AddToRemoveQueue(item);
-                    continue;
+                    item.FindHull();
+                    if (item.ContainedItems != null && item.ContainedItems.Length > 0) item.SetContainedItemPositions();
+                    if (item.Submarine == respawnShuttle)
+                    {
+                        Spawner.AddToRemoveQueue(item);
+                        continue;
+                    }
                 }
 
-                //restore other items to full condition and recharge batteries
                 item.Condition = item.Prefab.Health;
+
                 var powerContainer = item.GetComponent<PowerContainer>();
                 if (powerContainer != null)
                 {
-                    powerContainer.Charge = powerContainer.Capacity;
+                    powerContainer.charge = powerContainer.Capacity;
+                    //Just in case force a syncing event - had reports of depleted respawn shuttles on spawn which is a likely sync issue.
+                    powerContainer.Item.CreateServerEvent(powerContainer);
+                    powerContainer.lastSentCharge = powerContainer.Capacity;
                 }
+            }
+
+            foreach (Door door in shuttleDoors)
+            {
+                door.Stuck = 0f;
+                if (door.IsOpen) door.SetState(false, false, true);
             }
 
             foreach (Structure wall in Structure.WallList)
@@ -426,11 +508,18 @@ namespace Barotrauma.Networking
                 hull.WaterVolume = 0.0f;
             }
 
+            if (GameMain.NilMod.EnableEventChatterSystem)
+            {
+                if (NilMod.NilModEventChatter.ChatShuttleRespawn) SendKillMessages();
+            }
+
+            
             foreach (Character c in Character.CharacterList)
             {
                 if (c.Submarine == respawnShuttle)
                 {
                     if (Character.Controlled == c) Character.Controlled = null;
+                    if (Character.Spied == c) Character.Spied = null;
                     c.Enabled = false;
 
                     if (c.Inventory != null)
@@ -443,6 +532,8 @@ namespace Barotrauma.Networking
                     }
                     
                     c.Kill(CauseOfDeath.Damage, true);
+
+                    Spawner.AddToRemoveQueue(c);
                 }
             }
 
@@ -456,11 +547,15 @@ namespace Barotrauma.Networking
 
         public void RespawnCharacters()
         {
+            if (GameMain.NilMod.EnableEventChatterSystem)
+            {
+                if (NilMod.NilModEventChatter.ChatShuttleRespawn) SendRespawnMessages();
+            }
             var server = networkMember as GameServer;
             if (server == null) return;
 
             var respawnSub = respawnShuttle ?? Submarine.MainSub;
-            
+
             var clients = GetClientsToRespawn();
             foreach (Client c in clients)
             {
@@ -471,15 +566,34 @@ namespace Barotrauma.Networking
             }
 
             List<CharacterInfo> characterInfos = clients.Select(c => c.CharacterInfo).ToList();
-            if (server.Character != null && server.Character.IsDead)
+            if ((server.Character == null || (server.Character != null && server.Character.IsDead))
+                && (Character.Controlled == null || (Character.Controlled != null && Character.Controlled.IsDead))
+                && GameMain.Server.CharacterInfo != null)
             {
                 characterInfos.Add(server.CharacterInfo);
             }
 
-            server.AssignJobs(clients, server.Character != null && server.Character.IsDead);
+            //NilMod Jobs fix attempt
+            
+            server.AssignJobs(clients, (server.Character == null || (server.Character != null && server.Character.IsDead))
+                && (Character.Controlled == null || (Character.Controlled != null && Character.Controlled.IsDead))
+                && GameMain.Server.CharacterInfo != null);
+                
+
             foreach (Client c in clients)
             {
-                c.CharacterInfo.Job = new Job(c.AssignedJob);
+                if (c.AssignedJob != null)
+                {
+                    c.CharacterInfo.Job = new Job(c.AssignedJob);
+
+                    if (c.BypassSkillRequirements)
+                    {
+                        foreach (Skill skill in c.CharacterInfo.Job.Skills)
+                        {
+                            skill.Level = 100;
+                        }
+                    }
+                }
             }
 
             //the spawnpoints where the characters will spawn
@@ -495,6 +609,15 @@ namespace Barotrauma.Networking
 
             var cargoSp = WayPoint.WayPointList.Find(wp => wp.Submarine == respawnSub && wp.SpawnType == SpawnType.Cargo);
 
+            if (GameMain.NilMod.RespawnOnMainSub || respawnSub == null)
+            {
+                GameServer.Log("MainSub Respawn crew added:", ServerLog.MessageType.Spawns);
+            }
+            else
+            {
+                GameServer.Log("Shuttle Respawn crew:", ServerLog.MessageType.Spawns);
+            }
+
             for (int i = 0; i < characterInfos.Count; i++)
             {
                 bool myCharacter = false;
@@ -502,18 +625,54 @@ namespace Barotrauma.Networking
                 myCharacter = i >= clients.Count;
 #endif
 
-                var character = Character.Create(characterInfos[i], shuttleSpawnPoints[i].WorldPosition, !myCharacter, false);
-                
+                Character character;
+                if (!GameMain.NilMod.RespawnOnMainSub)
+                {
+                    character = Character.Create(characterInfos[i], shuttleSpawnPoints[i].WorldPosition, !myCharacter, false);
+                }
+                else
+                {
+                    character = Character.Create(characterInfos[i], mainSubSpawnPoints[i].WorldPosition, !myCharacter, false);
+                }
+
                 character.TeamID = 1;
+
+                //Spawn protection
+                if (GameMain.NilMod.PlayerSpawnProtectMidgame)
+                {
+                    character.SpawnProtectionHealth = GameMain.NilMod.PlayerSpawnProtectHealth;
+                    character.SpawnProtectionOxygen = GameMain.NilMod.PlayerSpawnProtectOxygen;
+                    character.SpawnProtectionPressure = GameMain.NilMod.PlayerSpawnProtectPressure;
+                    character.SpawnProtectionStun = GameMain.NilMod.PlayerSpawnProtectStun;
+                    character.SpawnRewireWaitTimer = GameMain.NilMod.PlayerSpawnRewireWaitTimer;
+                }
 
 #if CLIENT
                 if (myCharacter)
                 {
                     server.Character = character;
                     Character.Controlled = character;
+                    Character.SpawnCharacter = character;
 
-                    GameMain.LightManager.LosEnabled = true;
-                    GameServer.Log(string.Format("Respawning {0} (host) as {1}", character.Name, characterInfos[i].Job.Name), ServerLog.MessageType.Spawning);
+                    GameSession.inGameInfo.AddNoneClientCharacter(character, true);
+
+                    if (GameMain.NilMod.DisableLOSOnStart)
+                    {
+                        GameMain.LightManager.LosEnabled = false;
+                    }
+                    else
+                    {
+                        GameMain.LightManager.LosEnabled = true;
+                    }
+                    if (GameMain.NilMod.DisableLightsOnStart)
+                    {
+                        GameMain.LightManager.LightingEnabled = false;
+                    }
+                    else
+                    {
+                        GameMain.LightManager.LightingEnabled = true;
+                    }
+                    GameServer.Log("Respawn: " + character.Name + " As " + character.Info.Job.Name + " As Host", ServerLog.MessageType.Spawns);
                 }
                 else
                 {
@@ -521,22 +680,38 @@ namespace Barotrauma.Networking
                     clients[i].Character = character;
                     character.OwnerClientIP = clients[i].Connection.RemoteEndPoint.Address.ToString();
                     character.OwnerClientName = clients[i].Name;
-                    GameServer.Log(string.Format("Respawning {0} ({1}) as {2}", clients[i].Name, clients[i].Connection?.RemoteEndPoint?.Address, characterInfos[i].Job.Name), ServerLog.MessageType.Spawning);
+
+                    string spawnlogentry = "respawn: " + clients[i].CharacterInfo.Name + " As " + clients[i].CharacterInfo.Job.Name;
+                    if (GameMain.Server.KarmaEnabled)
+                    {
+                        if (clients[i].Karma < 1f)
+                        {
+                            spawnlogentry = spawnlogentry + " with " + Math.Round(clients[i].Karma, 2) + "% Karma";
+                        }
+                    }
+                    spawnlogentry = spawnlogentry + " On " + clients[i].Connection.RemoteEndPoint.Address;
+
+                    GameServer.Log(spawnlogentry, ServerLog.MessageType.Spawns);
 
 #if CLIENT
+                    GameSession.inGameInfo.UpdateClientCharacter(clients[i], character, true);
                 }
 #endif
 
+                Item divingSuit = null;
+                Item scooter = null;
+
                 if (respawnShuttle != null)
                 {
-                    Vector2 pos = cargoSp == null ? character.Position : cargoSp.Position;                
+                    Vector2 pos = cargoSp == null ? character.Position : cargoSp.Position;
+
                     if (divingSuitPrefab != null && oxyPrefab != null)
                     {
-                        var divingSuit  = new Item(divingSuitPrefab, pos, respawnSub);
+                        divingSuit = new Item(divingSuitPrefab, pos, respawnSub);
                         Spawner.CreateNetworkEvent(divingSuit, false);
                         respawnItems.Add(divingSuit);
 
-                        var oxyTank     = new Item(oxyPrefab, pos, respawnSub);
+                        var oxyTank = new Item(oxyPrefab, pos, respawnSub);
                         Spawner.CreateNetworkEvent(oxyTank, false);
                         divingSuit.Combine(oxyTank);
                         respawnItems.Add(oxyTank);
@@ -544,10 +719,11 @@ namespace Barotrauma.Networking
 
                     if (scooterPrefab != null && batteryPrefab != null)
                     {
-                        var scooter     = new Item(scooterPrefab, pos, respawnSub);
+                        scooter = new Item(scooterPrefab, pos, respawnSub);
                         Spawner.CreateNetworkEvent(scooter, false);
 
-                        var battery     = new Item(batteryPrefab, pos, respawnSub);
+
+                        var battery = new Item(batteryPrefab, pos, respawnSub);
                         Spawner.CreateNetworkEvent(battery, false);
 
                         scooter.Combine(battery);
@@ -558,6 +734,27 @@ namespace Barotrauma.Networking
                                 
                 //give the character the items they would've gotten if they had spawned in the main sub
                 character.GiveJobItems(mainSubSpawnPoints[i]);
+
+                Hull characterhull = Hull.FindHull(character.WorldPosition, character.CurrentHull);
+
+                if (characterhull.WaterVolume >= (characterhull.Volume * 0.75f))
+                {
+                    if (divingSuit != null)
+                    {
+                        List<InvSlotType> allowedSlots = new List<InvSlotType>(divingSuit.AllowedSlots);
+                        allowedSlots.Remove(InvSlotType.Any);
+
+                        character.Inventory.TryPutItem(divingSuit, null, allowedSlots);
+                    }
+
+                    if (scooter != null)
+                    {
+                        List<InvSlotType> allowedSlots = new List<InvSlotType>(scooter.AllowedSlots);
+                        allowedSlots.Remove(InvSlotType.Any);
+
+                        character.Inventory.TryPutItem(scooter, null, allowedSlots);
+                    }
+                }
 
                 //add the ID card tags they should've gotten when spawning in the shuttle
                 foreach (Item item in character.Inventory.Items)
@@ -571,6 +768,7 @@ namespace Barotrauma.Networking
                         item.Description = shuttleSpawnPoints[i].IdCardDesc;
                 }
 #if CLIENT
+                GameSession.inGameInfo.UpdateGameInfoGUIList();
                 GameMain.GameSession.CrewManager.AddCharacter(character);
 #endif
             }
@@ -626,6 +824,55 @@ namespace Barotrauma.Networking
             state = newState;
 
             msg.ReadPadBits();
+        }
+
+        //Nilmod Respawning Player Message Handler
+
+        public void SendRespawnMessages()
+        {
+            var respawningclients = GetClientsToRespawn();
+
+            foreach (Client client in respawningclients)
+            {
+                if (NilMod.NilModEventChatter.NilShuttleRespawn.Count() > 0 && NilMod.NilModEventChatter.ChatShuttleRespawn)
+                {
+                    foreach (string message in NilMod.NilModEventChatter.NilShuttleRespawn)
+                    {
+                        NilMod.NilModEventChatter.SendServerMessage(message, client);
+                    }
+                }
+            }
+        }
+
+        public void SendKillMessages()
+        {
+            foreach (Client client in networkMember.ConnectedClients)
+            {
+                if (client.Character != null)
+                {
+                    if (client.Character.Submarine == respawnShuttle && client.Character.Enabled)
+                    {
+                        if (NilMod.NilModEventChatter.NilShuttleLeavingKill.Count() > 0 && NilMod.NilModEventChatter.ChatShuttleLeavingKill)
+                        {
+                            foreach (string message in NilMod.NilModEventChatter.NilShuttleLeavingKill)
+                            {
+                                NilMod.NilModEventChatter.SendServerMessage(message, client);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        //NilMod Shuttle Commands
+        public void ForceShuttle()
+        {
+            DispatchShuttle();
+        }
+
+        public void RecallShuttle()
+        {
+            ResetShuttle();
         }
     }
 }

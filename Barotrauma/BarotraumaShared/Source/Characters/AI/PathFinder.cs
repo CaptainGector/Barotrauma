@@ -195,7 +195,10 @@ namespace Barotrauma
 
             if (startNode == null)
             {
-                DebugConsole.NewMessage("Pathfinding error, couldn't find a start node", Color.DarkRed);
+                if (GameMain.NilMod.ShowPathfindingErrors)
+                {
+                    DebugConsole.NewMessage("Pathfinding error, couldn't find a start node", Color.DarkRed);
+                }
 
                 return new SteeringPath();
             }
@@ -223,7 +226,10 @@ namespace Barotrauma
 
             if (endNode == null)
             {
-                DebugConsole.NewMessage("Pathfinding error, couldn't find an end node", Color.DarkRed);
+                if (GameMain.NilMod.ShowPathfindingErrors)
+                {
+                    DebugConsole.NewMessage("Pathfinding error, couldn't find an end node", Color.DarkRed);
+                }
                 return new SteeringPath();
             }
 
@@ -256,7 +262,10 @@ namespace Barotrauma
 
             if (startNode == null || endNode == null)
             {
-                DebugConsole.NewMessage("Pathfinding error, couldn't find matching pathnodes to waypoints", Color.DarkRed);
+                if (GameMain.NilMod.ShowPathfindingErrors)
+                {
+                    DebugConsole.NewMessage("Pathfinding error, couldn't find matching pathnodes to waypoints", Color.DarkRed);
+                }
                 return new SteeringPath();
             }
 
@@ -373,7 +382,10 @@ namespace Barotrauma
                 //should be fixed now, was most likely caused by the parent fields of the nodes not being cleared before starting the pathfinding
                 if (finalPath.Count > nodes.Count)
                 {
-                    DebugConsole.ThrowError("Pathfinding error: constructing final path failed");
+                    if (GameMain.NilMod.ShowPathfindingErrors)
+                    {
+                        DebugConsole.ThrowError("Pathfinding error: constructing final path failed");
+                    }
                     return new SteeringPath(true);
                 }
 

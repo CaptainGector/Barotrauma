@@ -176,23 +176,28 @@ namespace Barotrauma.Items.Components
 
             if (user != null)
             {
-                foreach (Limb limb in user.AnimController.Limbs)
+                if (user.AnimController != null)
                 {
-                    try
+                    if (user.AnimController.Limbs != null)
                     {
-                        item.body.FarseerBody.RestoreCollisionWith(limb.body.FarseerBody);
-                    }
+                        foreach (Limb limb in user.AnimController.Limbs)
+                        {
+                            try
+                            {
+                                item.body.FarseerBody.RestoreCollisionWith(limb.body.FarseerBody);
+                            }
+                            catch
+                            {
+                                continue;
+                            }
+                        }
 
-                    catch
-                    {
-                        continue;
+                        foreach (Limb limb in character.AnimController.Limbs)
+                        {
+                            item.body.FarseerBody.IgnoreCollisionWith(limb.body.FarseerBody);
+                        }
                     }
                 }
-            }
-
-            foreach (Limb limb in character.AnimController.Limbs)
-            {
-                item.body.FarseerBody.IgnoreCollisionWith(limb.body.FarseerBody);
             }
 
             user = character;
@@ -247,6 +252,17 @@ namespace Barotrauma.Items.Components
 
             if (targetCharacter == picker) return false;
 
+            string effectidentifier = "";
+
+            if (item.ContainedItems != null && item.ContainedItems.Length > 0)
+            {
+                effectidentifier = item.Name + " (" + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")";
+            }
+            else
+            {
+                effectidentifier = item.Name;
+            }
+
             if (attack != null)
             {
                 if (targetLimb != null)
@@ -255,11 +271,22 @@ namespace Barotrauma.Items.Components
                 }
                 else if (targetCharacter != null)
                 {
-                    attack.DoDamage(user, targetCharacter, item.WorldPosition, 1.0f);
+                    attack.DoDamage(user, targetCharacter, item.WorldPosition, 1.0f, true, effectidentifier);
                 }
                 else if (targetStructure != null)
                 {
+                    Boolean ModifyRangeValue = false;
+                    Boolean ModifyDamageRangeValue = false;
+                    if (attack.Range == 0) ModifyRangeValue = true;
+                    if (attack.DamageRange == 0) ModifyDamageRangeValue = true;
+
+                    if (ModifyRangeValue) attack.Range = 75f;
+                    if (ModifyDamageRangeValue) attack.DamageRange = 75f;
+
                     attack.DoDamage(user, targetStructure, item.WorldPosition, 1.0f);
+
+                    if (ModifyRangeValue) attack.Range = 0f;
+                    if (ModifyDamageRangeValue) attack.DamageRange = 0f;
                 }
                 else
                 {
@@ -283,10 +310,75 @@ namespace Barotrauma.Items.Components
                 }
                 logStr += " on " + targetCharacter.LogName + ".";
                 Networking.GameServer.Log(logStr, Networking.ServerLog.MessageType.Attack);
+
+                if (GameMain.NilMod.EnableGriefWatcher && user != null && user.TeamID == targetCharacter.TeamID && !targetCharacter.IsDead)
+                {
+                    Barotrauma.Networking.Client warnedclient = GameMain.Server.ConnectedClients.Find(c => c.Character == user);
+
+                    if (warnedclient != null)
+                    {
+                        //Melee Other check
+                        if (item.ContainedItems != null && item.ContainedItems.Length > 0)
+                        {
+                            for (int y = 0; y < NilMod.NilModGriefWatcher.GWListMeleeOther.Count; y++)
+                            {
+                                if (NilMod.NilModGriefWatcher.GWListMeleeOther[y] == item.Name)
+                                {
+                                    NilMod.NilModGriefWatcher.SendWarning(warnedclient.Character.LogName
+                                        + " attacked " + targetCharacter.LogName
+                                        + " using " + item.Name
+                                        + " (" + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")", warnedclient);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            for (int y = 0; y < NilMod.NilModGriefWatcher.GWListMeleeOther.Count; y++)
+                            {
+                                if (NilMod.NilModGriefWatcher.GWListMeleeOther[y] == item.Name)
+                                {
+                                    NilMod.NilModGriefWatcher.SendWarning(warnedclient.Character.LogName
+                                        + " attacked " + targetCharacter.LogName
+                                        + " using " + item.Name, warnedclient);
+                                }
+                            }
+                        }
+
+                        //Item Usage Other check
+                        if (item.ContainedItems == null || item.ContainedItems.All(i => i == null))
+                        {
+                            //Usage Check (And Contained)
+                            for (int y = 0; y < NilMod.NilModGriefWatcher.GWListUse.Count; y++)
+                            {
+                                if (NilMod.NilModGriefWatcher.GWListUse[y] == item.Name)
+                                {
+                                    NilMod.NilModGriefWatcher.SendWarning(warnedclient.Character.LogName
+                                        + " used Item " + item.Name
+                                        + " on " + targetCharacter.LogName, warnedclient);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            //Usage Check (And Contained)
+                            for (int y = 0; y < NilMod.NilModGriefWatcher.GWListUse.Count; y++)
+                            {
+                                if (NilMod.NilModGriefWatcher.GWListUse[y] == item.Name
+                                    || Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name).Contains(NilMod.NilModGriefWatcher.GWListUse[y]))
+                                {
+                                    NilMod.NilModGriefWatcher.SendWarning(warnedclient.Character.LogName
+                                        + " used item " + item.Name
+                                        + " (" + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")"
+                                        + " on " + targetCharacter.LogName, warnedclient);
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            
+
             if (targetCharacter != null) //TODO: Allow OnUse to happen on structures too maybe??
-                ApplyStatusEffects(ActionType.OnUse, 1.0f, targetCharacter != null ? targetCharacter : null);
+                ApplyStatusEffects(ActionType.OnUse, 1.0f, targetCharacter != null ? targetCharacter : null, user, effectidentifier);
 
             if (DeleteOnUse)
             {

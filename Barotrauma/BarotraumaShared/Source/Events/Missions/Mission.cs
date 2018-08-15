@@ -1,14 +1,15 @@
 ﻿using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Barotrauma
 {
     partial class Mission
-    {        
+    {
         protected bool completed;
 
-        private readonly MissionPrefab prefab;        
+        private readonly MissionPrefab prefab;
 
         public string Name
         {
@@ -73,7 +74,7 @@ namespace Barotrauma
         {
             get { return prefab; }
         }
-        
+
         public Mission(MissionPrefab prefab, Location[] locations)
         {
             System.Diagnostics.Debug.Assert(locations.Length == 2);
@@ -85,7 +86,7 @@ namespace Barotrauma
             FailureMessage = prefab.FailureMessage;
             Headers = new List<string>(prefab.Headers);
             Messages = new List<string>(prefab.Messages);
-            
+
             for (int n = 0; n < 2; n++)
             {
                 if (Description != null) Description = Description.Replace("[location" + (n + 1) + "]", locations[n].Name);
@@ -102,6 +103,7 @@ namespace Barotrauma
         {
             return LoadRandom(locations, new MTRandom(ToolBox.StringToInt(seed)), missionType, isSinglePlayer);
         }
+
 
         public static Mission LoadRandom(Location[] locations, MTRandom rand, string missionType = "", bool isSinglePlayer = false)
         {
@@ -138,8 +140,8 @@ namespace Barotrauma
             {
                 allowedMissions.RemoveAll(m => m.SingleplayerOnly);
             }
-            
-            float probabilitySum = allowedMissions.Sum(m => m.Commonness);            
+
+            float probabilitySum = allowedMissions.Sum(m => m.Commonness);
             float randomNumber = (float)rand.NextDouble() * probabilitySum;
             foreach (MissionPrefab missionPrefab in allowedMissions)
             {
@@ -179,7 +181,7 @@ namespace Barotrauma
             var mode = GameMain.GameSession.GameMode as CampaignMode;
             if (mode == null) return;
 
-            mode.Money += Reward;
+            mode.Money += Convert.ToInt32(Math.Round((Reward * GameMain.NilMod.CampaignBaseRewardMultiplier) + GameMain.NilMod.CampaignBonusMissionReward,0));
         }
     }
 }

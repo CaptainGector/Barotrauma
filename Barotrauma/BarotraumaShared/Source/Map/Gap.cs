@@ -29,15 +29,15 @@ namespace Barotrauma
         private float lowerSurface;
         
         private Vector2 lerpedFlowForce;
-        
+
         //if set to true, hull connections of this gap won't be updated when changes are being done to hulls
         public bool DisableHullRechecks;
         
         //can ambient light get through the gap even if it's not open
         public bool PassAmbientLight;
-        
-        //position of a collider outside the gap (for example an ice wall next to the sub)
-        //used by ragdolls to prevent them from ending up inside colliders when teleporting out of the sub
+
+        //position of a collider outside the gap (for example an ice wall next to the sub) 
+        //used by ragdolls to prevent them from ending up inside colliders when teleporting out of the sub 
         private Vector2? outsideColliderPos;
         private Vector2? outsideColliderNormal;
         private float outsideColliderRaycastTimer;

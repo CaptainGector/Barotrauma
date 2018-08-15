@@ -79,7 +79,7 @@ namespace Barotrauma.Lights
                 position = value;
 
                 if (Vector2.DistanceSquared(prevCalculatedPosition, position) < 5.0f * 5.0f) return;
-                
+
                 NeedsHullCheck = true;
                 NeedsRecalculation = true;
                 prevCalculatedPosition = position;
@@ -132,7 +132,7 @@ namespace Barotrauma.Lights
 
                 range = MathHelper.Clamp(value, 0.0f, 2048.0f);
                 if (Math.Abs(prevCalculatedRange - range) < 10.0f) return;
-                
+
                 NeedsHullCheck = true;
                 NeedsRecalculation = true;
                 prevCalculatedRange = range;
@@ -324,11 +324,11 @@ namespace Barotrauma.Lights
             var hulls = new List<ConvexHull>();// ConvexHull.GetHullsInRange(position, range, ParentSub);
             foreach (ConvexHullList chList in hullsInRange)
             {
-                //hulls.AddRange(chList.List);
+                //hulls.AddRange(chList.List); 
                 foreach (ConvexHull hull in chList.List)
                 {
                     if (!chList.IsHidden.Contains(hull)) hulls.Add(hull);
-                    //hulls.Add(hull);
+                    //hulls.Add(hull); 
                 }
                 foreach (ConvexHull hull in chList.List)
                 {
@@ -471,7 +471,7 @@ namespace Barotrauma.Lights
 
                 if (isPoint1 && isPoint2)
                 {
-                    //hit at the current segmentpoint -> place the segmentpoint into the list 
+                    //hit at the current segmentpoint -> place the segmentpoint into the list  
                     output.Add(p.WorldPos);
 
                     foreach (ConvexHullList hullList in hullsInRange)

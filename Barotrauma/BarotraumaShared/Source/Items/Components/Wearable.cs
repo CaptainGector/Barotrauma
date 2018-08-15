@@ -81,7 +81,6 @@ namespace Barotrauma.Items.Components
                             subElement.GetAttributeBool("hidelimb", false),
                             subElement.GetAttributeBool("inheritlimbdepth", true),
                             (LimbType)Enum.Parse(typeof(LimbType), subElement.GetAttributeString("depthlimb", "None"), true), sound);
-
                         foreach (XElement lightElement in subElement.Elements())
                         {
                             if (lightElement.Name.ToString().ToLowerInvariant() != "lightcomponent") continue;
@@ -108,6 +107,7 @@ namespace Barotrauma.Items.Components
                 if (equipLimb == null) continue;
                 
                 item.body.Enabled = false;
+
                 IsActive = true;
                 if (wearableSprites[i].LightComponent != null)
                 {
@@ -162,7 +162,7 @@ namespace Barotrauma.Items.Components
         {
             item.SetTransform(picker.SimPosition, 0.0f);
             item.SetContainedItemPositions();
-            
+
             item.ApplyStatusEffects(ActionType.OnWearing, deltaTime, picker);
 
 #if CLIENT

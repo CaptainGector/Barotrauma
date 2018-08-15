@@ -71,15 +71,15 @@ namespace Barotrauma.Items.Components
             var powered = item.GetComponent<Powered>();
             if (powered != null)
             {
-                if (powered.Voltage < 0.1f) return false;
+                if (powered.Voltage < GameMain.NilMod.ElectricalFailMaxVoltage) return false;
             }
 
             float degreeOfSuccess = DegreeOfSuccess(character);
             if (Rand.Range(0.0f, 50.0f) < degreeOfSuccess) return false;
 
-            character.SetStun(5.0f);
+            character.SetStun(GameMain.NilMod.ElectricalFailStunTime,false,false,true);
 
-            item.ApplyStatusEffects(ActionType.OnFailure, 1.0f, character);
+            item.ApplyStatusEffects(ActionType.OnFailure, 1.0f, character, false, character, "Failiure");
 
             return true;
         }
@@ -165,7 +165,7 @@ namespace Barotrauma.Items.Components
             for (int i = 0; i < Connections.Count; i++)
             {
                 wires[i] = new List<Wire>();
-                
+
                 for (int j = 0; j < Connection.MaxLinked; j++)
                 {
                     ushort wireId = msg.ReadUInt16();
@@ -195,7 +195,7 @@ namespace Barotrauma.Items.Components
                     if (!Connections.Any(connection => connection.Wires.Contains(wire)))
                     {
                         if (!wire.Item.CanClientAccess(c)) return;
-                    }                    
+                    }
                 }
             }
             
@@ -206,15 +206,32 @@ namespace Barotrauma.Items.Components
                 {
                     Wire existingWire = Connections[i].Wires[j];
                     if (existingWire == null) continue;
-                    
+                    //NilMod Deny changes to locked wiring
+                    //if (existingWire.Locked == true) continue;
+
                     //existing wire not in the list of new wires -> disconnect it
                     if (!wires[i].Contains(existingWire))
                     {
-                        if (existingWire.Locked)
+                        if (existingWire.Locked || c.Character?.SpawnRewireWaitTimer > 0)
                         {
-                            //this should not be possible unless the client is running a modified version of the game
-                            GameServer.Log(c.Character.LogName + " attempted to disconnect a locked wire from " +
-                                Connections[i].Item.Name + " (" + Connections[i].Name + ")", ServerLog.MessageType.Error);
+                            if (!GameMain.NilMod.CanRewireMainSubs && c.Character?.SpawnRewireWaitTimer <= 0f)
+                            {
+                                //this should not be possible unless the client is running a modified version of the game 
+                                GameServer.Log(c.Character.LogName + " attempted to disconnect a locked wire from " +
+                                    Connections[i].Item.Name + " (" + Connections[i].Name + ") - Could be a modified client.", ServerLog.MessageType.Rewire);
+                            }
+                            else if(c.Character?.SpawnRewireWaitTimer > 0f)
+                            {
+                                //this is simply the rewire protection from CanRewireMainSubs
+                                GameServer.Log(c.Character.LogName + " attempted to disconnect a locked wire from " +
+                                    Connections[i].Item.Name + " (" + Connections[i].Name + ") - but SpawnRewireWaitTimer Prevented it.", ServerLog.MessageType.Rewire);
+                            }
+                            else
+                            {
+                                //this is simply the rewire protection from CanRewireMainSubs
+                                GameServer.Log(c.Character.LogName + " attempted to disconnect a locked wire from " +
+                                    Connections[i].Item.Name + " (" + Connections[i].Name + ") - but CanRewireMainSubs Prevented it.", ServerLog.MessageType.Rewire);
+                            }
                             continue;
                         }
 
@@ -223,12 +240,32 @@ namespace Barotrauma.Items.Components
                         if (existingWire.Connections[0] == null && existingWire.Connections[1] == null)
                         {
                             GameServer.Log(c.Character.LogName + " disconnected a wire from " +
-                                Connections[i].Item.Name + " (" + Connections[i].Name + ")", ServerLog.MessageType.ItemInteraction);
+                                Connections[i].Item.Name + " (" + Connections[i].Name + ")", ServerLog.MessageType.Rewire);
                         }
                         else if (existingWire.Connections[0] != null)
                         {
                             GameServer.Log(c.Character.LogName + " disconnected a wire from " +
-                                Connections[i].Item.Name + " (" + Connections[i].Name + ") to " + existingWire.Connections[0].Item.Name + " (" + existingWire.Connections[0].Name + ")", ServerLog.MessageType.ItemInteraction);
+                                Connections[i].Item.Name + " (" + Connections[i].Name + ") to " + existingWire.Connections[0].Item.Name + " (" + existingWire.Connections[0].Name + ")", ServerLog.MessageType.Rewire);
+
+                            if (GameMain.NilMod.EnableGriefWatcher)
+                            {
+                                for (int z = 0; z < NilMod.NilModGriefWatcher.GWListWireKeyDevices.Count; z++)
+                                {
+                                    if (NilMod.NilModGriefWatcher.GWListWireKeyDevices[z] == Connections[i].Item.Name || NilMod.NilModGriefWatcher.GWListWireKeyDevices[z] == existingWire.Connections[0].Item.Name)
+                                    {
+                                        NilMod.NilModGriefWatcher.SendWarning(c.Character.LogName + " Modified a wire from "
+                                            + Connections[i].Item.Name + " (" + Connections[i].Name
+                                            + ") to " + existingWire.Connections[0].Item.Name + " (" + existingWire.Connections[0].Name + ")" + ".", c);
+                                    }
+                                }
+
+                                if (NilMod.NilModGriefWatcher.GWListWireJunctions.Contains(Connections[i].Item.Name) && NilMod.NilModGriefWatcher.GWListWireJunctions.Contains(existingWire.Connections[0].Item.Name))
+                                {
+                                    NilMod.NilModGriefWatcher.SendWarning(c.Character.LogName + " Modified a wire from "
+                                        + Connections[i].Item.Name + " (" + Connections[i].Name
+                                        + ") to " + existingWire.Connections[0].Item.Name + " (" + existingWire.Connections[0].Name + ")" + ".", c);
+                                }
+                            }
 
                             //wires that are not in anyone's inventory (i.e. not currently being rewired) 
                             //can never be connected to only one connection
@@ -243,7 +280,27 @@ namespace Barotrauma.Items.Components
                         else if (existingWire.Connections[1] != null)
                         {
                             GameServer.Log(c.Character.LogName + " disconnected a wire from " +
-                                Connections[i].Item.Name + " (" + Connections[i].Name + ") to " + existingWire.Connections[1].Item.Name + " (" + existingWire.Connections[1].Name + ")", ServerLog.MessageType.ItemInteraction);
+                                Connections[i].Item.Name + " (" + Connections[i].Name + ") to " + existingWire.Connections[1].Item.Name + " (" + existingWire.Connections[1].Name + ")", ServerLog.MessageType.Rewire);
+
+                            if (GameMain.NilMod.EnableGriefWatcher)
+                            {
+                                for (int z = 0; z < NilMod.NilModGriefWatcher.GWListWireKeyDevices.Count - 1; z++)
+                                {
+                                    if (NilMod.NilModGriefWatcher.GWListWireKeyDevices[z] == Connections[i].Item.Name || NilMod.NilModGriefWatcher.GWListWireKeyDevices[z] == existingWire.Connections[1].Item.Name)
+                                    {
+                                        NilMod.NilModGriefWatcher.SendWarning(c.Character.LogName + " Modified a wire from "
+                                            + Connections[i].Item.Name + " (" + Connections[i].Name
+                                            + ") to " + existingWire.Connections[1].Item.Name + " (" + existingWire.Connections[1].Name + ")" + ".", c);
+                                    }
+                                }
+
+                                if (NilMod.NilModGriefWatcher.GWListWireJunctions.Contains(Connections[i].Item.Name) && NilMod.NilModGriefWatcher.GWListWireJunctions.Contains(existingWire.Connections[1].Item.Name))
+                                {
+                                    NilMod.NilModGriefWatcher.SendWarning(c.Character.LogName + " Modified a wire from "
+                                        + Connections[i].Item.Name + " (" + Connections[i].Name
+                                        + ") to " + existingWire.Connections[1].Item.Name + " (" + existingWire.Connections[1].Name + ")" + ".", c);
+                                }
+                            }
 
                             if (existingWire.Item.ParentInventory == null && !wires.Any(w => w.Contains(existingWire)))
                             {
@@ -266,6 +323,8 @@ namespace Barotrauma.Items.Components
                 {
                     //already connected, no need to do anything
                     if (Connections[i].Wires.Contains(newWire)) continue;
+                    //NilMod Deny changes to locked wiring
+                    if (newWire.Locked || c.Character?.SpawnRewireWaitTimer > 0f) continue;
 
                     Connections[i].TryAddLink(newWire);
                     newWire.Connect(Connections[i], true, true);
@@ -276,14 +335,14 @@ namespace Barotrauma.Items.Components
                     {
                         GameServer.Log(c.Character.LogName + " connected a wire to " +
                             Connections[i].Item.Name + " (" + Connections[i].Name + ")", 
-                            ServerLog.MessageType.ItemInteraction);
+                            ServerLog.MessageType.Rewire);
                     }
                     else
                     {
                         GameServer.Log(c.Character.LogName + " connected a wire from " +
                             Connections[i].Item.Name + " (" + Connections[i].Name + ") to " +
                             (otherConnection == null ? "none" : otherConnection.Item.Name + " (" + (otherConnection.Name) + ")"), 
-                            ServerLog.MessageType.ItemInteraction);
+                            ServerLog.MessageType.Rewire);
                     }
                 }
             }
@@ -292,6 +351,6 @@ namespace Barotrauma.Items.Components
         public void ServerWrite(NetBuffer msg, Client c, object[] extraData = null)
         {
             ClientWrite(msg, extraData);
-        } 
+        }
     }
 }

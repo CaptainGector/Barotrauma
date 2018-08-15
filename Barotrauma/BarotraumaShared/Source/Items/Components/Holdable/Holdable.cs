@@ -4,6 +4,7 @@ using Lidgren.Network;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 using System.Xml.Linq;
+using System.Linq;
 
 namespace Barotrauma.Items.Components
 {
@@ -24,6 +25,7 @@ namespace Barotrauma.Items.Components
         //protected bool aimable;
 
         private bool attachable, attached, attachedByDefault;
+        public Character attachedby;
         private PhysicsBody body;
 
         //the angle in which the Character holds the item
@@ -99,7 +101,8 @@ namespace Barotrauma.Items.Components
                 prevMsg = Msg;
                 prevPickKey = PickKey;
                 prevRequiredItems = new List<RelatedItem>(requiredItems);
-                                
+
+                
                 if (item.Submarine != null)
                 {
                     if (item.Submarine.Loading)
@@ -184,11 +187,11 @@ namespace Barotrauma.Items.Components
                     heldHand = picker.AnimController.GetLimb(LimbType.RightHand);
                     arm = picker.AnimController.GetLimb(LimbType.RightArm);
                 }
-                
+
                 float xDif = (heldHand.SimPosition.X - arm.SimPosition.X) / 2f;
                 float yDif = (heldHand.SimPosition.Y - arm.SimPosition.Y) / 2.5f;
-                //hand simPosition is actually in the wrist so need to move the item out from it slightly
-                item.SetTransform(heldHand.SimPosition + new Vector2(xDif,yDif), 0.0f);
+                //hand simPosition is actually in the wrist so need to move the item out from it slightly 
+                item.SetTransform(heldHand.SimPosition + new Vector2(xDif, yDif), 0.0f);
             }
 
             picker.DeselectItem(item);
@@ -326,12 +329,37 @@ namespace Barotrauma.Items.Components
                 if (GameMain.Server != null)
                 {
                     item.CreateServerEvent(this);
-                    GameServer.Log(character.LogName + " attached " + item.Name+" to a wall", ServerLog.MessageType.ItemInteraction);
+                    GameServer.Log(character.LogName + " attached " + item.Name + " to a wall", ServerLog.MessageType.ItemInteraction);
+
+                    //Detonator attachment check
+                    for (int y = 0; y < NilMod.NilModGriefWatcher.GWListDetonators.Count; y++)
+                    {
+                        if (NilMod.NilModGriefWatcher.GWListDetonators[y] == item.Name)
+                        {
+                            Barotrauma.Networking.Client warnedclient = GameMain.Server.ConnectedClients.Find(c => c.Character == character);
+
+                            if (item.ContainedItems == null || item.ContainedItems.All(it => it == null))
+                            {
+                                NilMod.NilModGriefWatcher.SendWarning(character.LogName
+                                + " attached " + item.Name
+                                + " to a wall", warnedclient);
+                            }
+                            else
+                            {
+                                NilMod.NilModGriefWatcher.SendWarning(character.LogName
+                                    + " attached " + item.Name
+                                    + " (" + string.Join(", ", System.Array.FindAll(item.ContainedItems, it => it != null).Select(it => it.Name))
+                                    + ")"
+                                    + " to a wall", warnedclient);
+                            }
+                        }
+                    }
                 }
                 item.Drop();
             }
             
             AttachToWall();
+            if (attached && character != null) attachedby = character;
 
             return true;
         }
@@ -343,6 +371,7 @@ namespace Barotrauma.Items.Components
 
         public override void Update(float deltaTime, Camera cam)
         {
+            if (attachedby != null && attachedby.Removed) attachedby = null;
             if (item.body == null || !item.body.Enabled) return;
             if (picker == null || !picker.HasEquippedItem(item))
             {
@@ -428,9 +457,8 @@ namespace Barotrauma.Items.Components
         {
             if (!attachable || body == null)
             {
-                DebugConsole.ThrowError("Sent an attachment event for an item that's not attachable.");
+                DebugConsole.ThrowError("sent an attachment event for item: " + item.Name.ToString() + " that's not attachable.");
             }
-
             msg.Write(Attached);
             msg.Write(body.SimPosition.X);
             msg.Write(body.SimPosition.Y);
@@ -443,7 +471,7 @@ namespace Barotrauma.Items.Components
 
             if (!attachable)
             {
-                DebugConsole.ThrowError("Received an attachment event for an item that's not attachable.");
+                DebugConsole.ThrowError("Received an attachment event for item: " + item.Name.ToString() + " that's not attachable.");
                 return;
             }
 

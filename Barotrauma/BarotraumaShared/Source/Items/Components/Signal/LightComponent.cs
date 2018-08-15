@@ -145,7 +145,7 @@ namespace Barotrauma.Items.Components
 
             if (body != null)
             {
-#if CLIENT
+#if CLIENT 
                 light.Rotation = body.Dir > 0.0f ? body.Rotation : body.Rotation - MathHelper.Pi;
                 light.LightSpriteEffect = (body.Dir > 0.0f) ? SpriteEffects.None : SpriteEffects.FlipVertically;
 #endif
@@ -163,7 +163,7 @@ namespace Barotrauma.Items.Components
                 light.Rotation = -Rotation;
 #endif
             }
-            
+
             if (powerConsumption == 0.0f)
             {
                 voltage = 1.0f;

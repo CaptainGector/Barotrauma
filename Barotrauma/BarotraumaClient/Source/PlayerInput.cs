@@ -160,7 +160,7 @@ namespace Barotrauma
                 }
                 lastClickPosition = mouseState.Position;
                 timeSinceClick = 0.0;
-            }            
+            }
         }
 
         public static void UpdateVariable()

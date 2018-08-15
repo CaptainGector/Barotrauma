@@ -411,12 +411,12 @@ namespace Barotrauma
                     cell.bodyVertices.Add(bodyPoints[i]);
                     bodyPoints[i] = ConvertUnits.ToSimUnits(bodyPoints[i]);
                 }
-                
+
                 if (cell.CellType == CellType.Empty) continue;
 
                 cellBody.UserData = cell;
                 var triangles = MathUtils.TriangulateConvexHull(bodyPoints, ConvertUnits.ToSimUnits(cell.Center));
-                
+
                 for (int i = 0; i < triangles.Count; i++)
                 {
                     //don't create a triangle if any of the vertices are too close to each other
@@ -424,7 +424,7 @@ namespace Barotrauma
                     if (Vector2.DistanceSquared(triangles[i][0], triangles[i][1]) < 0.006f ||
                         Vector2.DistanceSquared(triangles[i][0], triangles[i][2]) < 0.006f ||
                         Vector2.DistanceSquared(triangles[i][1], triangles[i][2]) < 0.006f) continue;
-                    
+
                     Vertices bodyVertices = new Vertices(triangles[i]);
                     var newFixture = FixtureFactory.AttachPolygon(bodyVertices, 5.0f, cellBody);
                     newFixture.UserData = cell;
@@ -438,7 +438,6 @@ namespace Barotrauma
                             "Invalid triangle created by CaveGenerator (" + triangles[i][0] + ", " + triangles[i][1] + ", " + triangles[i][2] + "). Seed: " + level.Seed);
                     }
                 }
-                
                 cell.body = cellBody;
             }
 

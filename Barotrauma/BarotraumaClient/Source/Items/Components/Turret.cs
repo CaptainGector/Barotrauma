@@ -148,7 +148,7 @@ namespace Barotrauma.Items.Components
         public void ClientRead(ServerNetObject type, NetBuffer msg, float sendingTime)
         {
             UInt16 projectileID = msg.ReadUInt16();
-            //projectile removed, do nothing
+            //projectile removed, do nothing 
             if (projectileID == 0) return;
 
             Item projectile = Entity.FindEntityByID(projectileID) as Item;

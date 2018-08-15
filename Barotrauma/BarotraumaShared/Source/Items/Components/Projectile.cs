@@ -37,7 +37,7 @@ namespace Barotrauma.Items.Components
             get { return launchImpulse; }
             set { launchImpulse = value; }
         }
-        
+
         [Serialize(false, false)]
         //backwards compatibility, can stick to anything
         public bool DoesStick
@@ -223,13 +223,24 @@ namespace Barotrauma.Items.Components
             //the raycast didn't hit anything -> the projectile flew somewhere outside the level and is permanently lost
             if (!hitSomething)
             {
-                Entity.Spawner.AddToRemoveQueue(item);
+                CoroutineManager.StartCoroutine(RemoveOnhitDelayed(), "RemoveProjectileDelayed");
             }
         }
         
         public override void Update(float deltaTime, Camera cam)
         {
-            ApplyStatusEffects(ActionType.OnActive, deltaTime, null); 
+            string effectidentifier = "";
+
+            if (item.ContainedItems != null && item.ContainedItems.Length > 0)
+            {
+                effectidentifier = item.Name + " (" + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")";
+            }
+            else
+            {
+                effectidentifier = item.Name;
+            }
+
+            ApplyStatusEffects(ActionType.OnActive, deltaTime, null, User, effectidentifier); 
 
             if (item.body != null && item.body.FarseerBody.IsBullet)
             {
@@ -296,8 +307,20 @@ namespace Barotrauma.Items.Components
                 return false;
             }
 
+            string effectidentifier = "";
+
             AttackResult attackResult = new AttackResult();
             Character character = null;
+
+            if (item.ContainedItems != null && item.ContainedItems.Length > 0)
+            {
+                effectidentifier = item.Name + " (" + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")";
+            }
+            else
+            {
+                effectidentifier = item.Name;
+            }
+
             if (attack != null)
             {
                 if (target.Body.UserData is Submarine submarine)
@@ -305,13 +328,13 @@ namespace Barotrauma.Items.Components
                     item.Move(-submarine.Position);
                     item.Submarine = submarine;
                     item.body.Submarine = submarine;
-                    return true;
+                    return false;
                 }
 
                 Structure structure;
                 if (target.Body.UserData is Limb limb)
                 {
-                    attackResult = attack.DoDamageToLimb(User, limb, item.WorldPosition, 1.0f);
+                    attackResult = attack.DoDamageToLimb(User, limb, item.WorldPosition, 1.0f, true, effectidentifier);
                     if (limb.character != null)
                         character = limb.character;
                 }
@@ -321,8 +344,8 @@ namespace Barotrauma.Items.Components
                 }
             }
 
-            ApplyStatusEffects(ActionType.OnUse, 1.0f, character);
-            ApplyStatusEffects(ActionType.OnImpact, 1.0f, character);
+            ApplyStatusEffects(ActionType.OnUse, 1.0f, character, User, effectidentifier);
+            ApplyStatusEffects(ActionType.OnImpact, 1.0f, character, User, effectidentifier);
             
             item.body.FarseerBody.OnCollision -= OnProjectileCollision;
 
@@ -372,7 +395,7 @@ namespace Barotrauma.Items.Components
 
             if (RemoveOnHit)
             {
-                Entity.Spawner.AddToRemoveQueue(item);
+                CoroutineManager.StartCoroutine(RemoveOnhitDelayed(),"RemoveProjectileDelayed");
             }
 
             return true;
@@ -418,6 +441,26 @@ namespace Barotrauma.Items.Components
                 stickJoint = null;
             }
 
+        }
+
+        public IEnumerable<Object> RemoveOnhitDelayed()
+        {
+            float Removetime = 0.6f;
+
+            yield return CoroutineStatus.Running;
+
+            Item.Move((Item.Position + new Vector2(-50000, 120000)));
+
+            while(Removetime >= 0f)
+            {
+                Removetime -= CoroutineManager.DeltaTime;
+                yield return CoroutineStatus.Running;
+            }
+
+            //Remove the projectile
+            Entity.Spawner.AddToRemoveQueue(item);
+
+            yield return CoroutineStatus.Success;
         }
     }
 }

@@ -31,7 +31,7 @@ namespace Barotrauma
         }
 
         public bool ShouldBeSaved = true;
-        
+
         //the position and dimensions of the entity
         protected Rectangle rect;
         
@@ -378,6 +378,7 @@ namespace Barotrauma
             }
 
             List<LinkedSubmarine> linkedSubs = new List<LinkedSubmarine>();
+
             for (int i = 0; i < mapEntityList.Count; i++)
             {
                 if (mapEntityList[i].Submarine != sub) continue;
@@ -390,7 +391,7 @@ namespace Barotrauma
 
                 mapEntityList[i].OnMapLoaded();
             }
-            
+
             if (sub != null)
             {
                 Item.UpdateHulls();

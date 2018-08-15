@@ -141,8 +141,8 @@ namespace Barotrauma.Networking
                         DebugConsole.ThrowError("Failed to read server event for entity \"" + entityName + "\"!", e);
                     }
                     GameAnalyticsManager.AddErrorEventOnce("ServerEntityEventManager.Read:ReadFailed" + entityName,
-                        GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
-                        "Failed to read server event for entity \"" + entityName + "\"!\n" + e.StackTrace);
+                            GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
+                            "Failed to read server event for entity \"" + entityName + "\"!\n" + e.StackTrace);
                 }
 
                 bufferedEvent.IsProcessed = true;
@@ -152,10 +152,10 @@ namespace Barotrauma.Networking
             if (inGameClients.Count > 0)
             {
                 lastSentToAll = inGameClients[0].LastRecvEntityEventID;
-                inGameClients.ForEach(c => { if (NetIdUtils.IdMoreRecent(lastSentToAll, c.LastRecvEntityEventID)) lastSentToAll = c.LastRecvEntityEventID; });
+                inGameClients.ForEach(c => { if (NetIdUtils.IdMoreRecent((ushort)(lastSentToAll - 1), c.LastRecvEntityEventID)) lastSentToAll = (ushort)(c.LastRecvEntityEventID - 1); });
 
                 ServerEntityEvent firstEventToResend = events.Find(e => e.ID == (ushort)(lastSentToAll + 1));
-                if (firstEventToResend != null && (Timing.TotalTime - firstEventToResend.CreateTime) > 10.0f)
+                if (firstEventToResend != null && (Timing.TotalTime - firstEventToResend.CreateTime) > (10.0f * GameMain.NilMod.DesyncTimerMultiplier))
                 {
                     //it's been 10 seconds since this event was created
                     //kick everyone that hasn't received it yet, this is way too old
@@ -163,7 +163,7 @@ namespace Barotrauma.Networking
                     toKick.ForEach(c =>
                     {
                         DebugConsole.NewMessage(c.Name + " was kicked due to excessive desync (expected old event " + c.LastRecvEntityEventID.ToString() + ")", Microsoft.Xna.Framework.Color.Red);
-                        server.DisconnectClient(c, "", "You have been disconnected because of excessive desync");
+                        server.DisconnectClient(c, "", "You have been disconnected because of excessive desync (Expected old event, inform the server host increasing 'DesyncTimerMultiplier' could help.");
                     }
                     );
                 }
@@ -176,7 +176,7 @@ namespace Barotrauma.Networking
                     toKick.ForEach(c =>
                     {
                         DebugConsole.NewMessage(c.Name + " was kicked due to excessive desync (expected " + c.LastRecvEntityEventID.ToString() + ", last available is " + events[0].ID.ToString() + ")", Microsoft.Xna.Framework.Color.Red);
-                        server.DisconnectClient(c, "", "You have been disconnected because of excessive desync");
+                        server.DisconnectClient(c, "", "You have been disconnected because of excessive desync (Event no longer exists)");
                     }
                     );
                 }
@@ -305,7 +305,7 @@ namespace Barotrauma.Networking
             else
             {
                 double midRoundSyncTimeOut = uniqueEvents.Count / MaxEventsPerWrite * server.UpdateInterval.TotalSeconds;
-                midRoundSyncTimeOut = Math.Max(5.0f, midRoundSyncTimeOut * 2.0f);
+                midRoundSyncTimeOut = (Math.Max(5.0f, midRoundSyncTimeOut * 2.0f) * GameMain.NilMod.DesyncTimerMultiplier);
 
                 client.UnreceivedEntityEventCount = (UInt16)uniqueEvents.Count;
                 client.FirstNewEventID = 0;

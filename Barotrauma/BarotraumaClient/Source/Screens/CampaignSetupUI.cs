@@ -57,7 +57,7 @@ namespace Barotrauma
                 
                 Submarine selectedSub = subList.SelectedData as Submarine;
                 if (selectedSub == null) return false;
-                
+
                 if (string.IsNullOrEmpty(selectedSub.MD5Hash.Hash))
                 {
                     ((GUITextBlock)subList.Selected).TextColor = Color.DarkRed * 0.8f;

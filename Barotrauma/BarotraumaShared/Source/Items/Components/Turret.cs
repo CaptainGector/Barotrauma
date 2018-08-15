@@ -103,8 +103,8 @@ namespace Barotrauma.Items.Components
             if (hasLight == null)
             {
                 List<LightComponent> lightComponents = item.GetComponents<LightComponent>();
-                
-                if (lightComponents != null && lightComponents.Count>0)
+
+                if (lightComponents != null && lightComponents.Count > 0)
                 {
                     lightComponent = lightComponents.Find(lc => lc.Parent == this);
                     hasLight = (lightComponent != null);
@@ -194,7 +194,33 @@ namespace Barotrauma.Items.Components
                 {
                     msg += ", contained items: " + string.Join(", ", Array.FindAll(projectiles[0].Item.ContainedItems, i => i != null).Select(i => i.Name)) + ")";
                 }
-                GameServer.Log(msg, ServerLog.MessageType.ItemInteraction);
+                GameServer.Log(msg, ServerLog.MessageType.Attack);
+
+                if (GameMain.Server != null && GameMain.NilMod.EnableGriefWatcher)
+                {
+                    for (int y = 0; y < NilMod.NilModGriefWatcher.GWListRailgunLaunch.Count; y++)
+                    {
+                        if (NilMod.NilModGriefWatcher.GWListRailgunLaunch[y] == projectiles[0].Item.Name)
+                        {
+                            Barotrauma.Networking.Client warnedclient = GameMain.Server.ConnectedClients.Find(c => c.Character == character);
+
+                            if (item.ContainedItems == null || item.ContainedItems.All(it => it == null))
+                            {
+                                NilMod.NilModGriefWatcher.SendWarning(character.LogName
+                                    + " launched " + projectiles[0].Item.Name
+                                    + " from " + item.Name, warnedclient);
+                            }
+                            else
+                            {
+                                NilMod.NilModGriefWatcher.SendWarning(character.LogName
+                                    + " launched " + projectiles[0].Item.Name
+                                    + " (" + string.Join(", ", System.Array.FindAll(item.ContainedItems, it => it != null).Select(it => it.Name))
+                                    + ")"
+                                    + " from " + item.Name, warnedclient);
+                            }
+                        }
+                    }
+                }
             }
 
             return true;

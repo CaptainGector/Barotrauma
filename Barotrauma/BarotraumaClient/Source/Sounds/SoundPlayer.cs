@@ -105,7 +105,7 @@ namespace Barotrauma
                     soundElements.AddRange(doc.Root.Elements());
                 }
             }
-            
+
             SoundCount = 1 + soundElements.Count();
 
             var startUpSoundElement = soundElements.Find(e => e.Name.ToString().ToLowerInvariant() == "startupsound");
@@ -116,11 +116,11 @@ namespace Barotrauma
             }
 
             yield return CoroutineStatus.Running;
-                                    
+
             List<KeyValuePair<string, Sound>> miscSoundList = new List<KeyValuePair<string, Sound>>();
             damageSounds = new List<DamageSound>();
             musicClips = new List<BackgroundMusic>();
-            
+
             foreach (XElement soundElement in soundElements)
             {
                 yield return CoroutineStatus.Running;
@@ -146,13 +146,13 @@ namespace Barotrauma
                     case "damagesound":
                         Sound damageSound = Sound.Load(soundElement.GetAttributeString("file", ""), false);
                         if (damageSound == null) continue;
-                    
+
                         string damageSoundType = soundElement.GetAttributeString("damagesoundtype", "None");
 
                         damageSounds.Add(new DamageSound(
-                            damageSound, 
-                            soundElement.GetAttributeVector2("damagerange", new Vector2(0.0f, 100.0f)), 
-                            damageSoundType, 
+                            damageSound,
+                            soundElement.GetAttributeVector2("damagerange", new Vector2(0.0f, 100.0f)),
+                            damageSoundType,
                             soundElement.GetAttributeString("requiredtag", "")));
 
                         break;
@@ -183,7 +183,7 @@ namespace Barotrauma
             if (startUpSound != null && !startUpSound.IsPlaying)
             {
                 startUpSound.Remove();
-                startUpSound = null;                
+                startUpSound = null;
             }
 
             //stop submarine ambient sounds if no sub is loaded
@@ -287,7 +287,7 @@ namespace Barotrauma
                 {
                     OverrideMusicType = null;
                     OverrideMusicDuration = null;
-                }                
+                }
             }
 
             updateMusicTimer -= deltaTime;
@@ -417,6 +417,13 @@ namespace Barotrauma
                 if (targetSubmarine != null)
                 {
                     if (Vector2.DistanceSquared(character.WorldPosition, targetSubmarine.WorldPosition) < enemyDistThreshold * enemyDistThreshold)
+                    {
+                        return "monster";
+                    }
+                }
+                else if (Character.Spied != null)
+                {
+                    if (Vector2.DistanceSquared(character.WorldPosition, Character.Spied.WorldPosition) < enemyDistThreshold * enemyDistThreshold)
                     {
                         return "monster";
                     }

@@ -7,7 +7,7 @@ namespace Barotrauma.Networking
     abstract class NetEntityEventManager
     {
         public const int MaxEventBufferLength = 1024;
-        public const int MaxEventsPerWrite = 64;
+        public const int MaxEventsPerWrite = 128;
         
         /// <summary>
         /// Write the events to the outgoing message. The recipient parameter is only needed for ServerEntityEventManager
@@ -31,8 +31,8 @@ namespace Barotrauma.Networking
                 {
                     DebugConsole.ThrowError("Failed to write an event for the entity \"" + e.Entity + "\"", exception);
                     GameAnalyticsManager.AddErrorEventOnce("NetEntityEventManager.Write:WriteFailed" + e.Entity.ToString(),
-                        GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
-                        "Failed to write an event for the entity \"" + e.Entity + "\"\n" + exception.StackTrace);
+                                            GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
+                                            "Failed to write an event for the entity \"" + e.Entity + "\"\n" + exception.StackTrace);
 
                     //write an empty event to avoid messing up IDs
                     //(otherwise the clients might read the next event in the message and think its ID 
@@ -53,17 +53,16 @@ namespace Barotrauma.Networking
                 {
                     DebugConsole.ThrowError("Too much data in network event for entity \"" + e.Entity.ToString() + "\" (" + tempEventBuffer.LengthBytes + " bytes");
                     GameAnalyticsManager.AddErrorEventOnce("NetEntityEventManager.Write:TooLong" + e.Entity.ToString(),
-                        GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
-                        "Too much data in network event for entity \"" + e.Entity.ToString() + "\" (" + tempEventBuffer.LengthBytes + " bytes");
+                            GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
+                            "Too much data in network event for entity \"" + e.Entity.ToString() + "\" (" + tempEventBuffer.LengthBytes + " bytes");
 
-                    //write an empty event breaking the event syncing
+                    //write an empty event breaking the event syncing 
                     tempBuffer.Write((UInt16)0);
                     tempBuffer.WritePadBits();
                     eventCount++;
                     continue;
-
                 }
-                
+
                 //the ID has been taken by another entity (the original entity has been removed) -> write an empty event
                 else if (Entity.FindEntityByID(e.Entity.ID) != e.Entity || e.Entity.IdFreed)
                 {

@@ -61,7 +61,7 @@ namespace Barotrauma
         partial void LoadTexture(ref Vector4 sourceVector, ref bool shouldReturn);
         partial void CalculateSourceRect();
 
-        // TODO: use the Init method below?
+        // TODO: use the Init method below? 
         public Sprite(XElement element, string path = "", string file = "")
         {
             if (file == "")
@@ -109,12 +109,12 @@ namespace Barotrauma
         {
             Init(newFile, newOrigin: newOrigin);
         }
-        
+
         public Sprite(string newFile, Rectangle? sourceRectangle, Vector2? newOffset = null, float newRotation = 0)
         {
             Init(newFile, sourceRectangle: sourceRectangle, newOffset: newOffset, newRotation: newRotation);
         }
-        
+
         private void Init(string newFile, Rectangle? sourceRectangle = null, Vector2? newOrigin = null, Vector2? newOffset = null, float newRotation = 0)
         {
             file = newFile;
@@ -122,6 +122,7 @@ namespace Barotrauma
             bool shouldReturn = false;
             LoadTexture(ref sourceVector, ref shouldReturn);
             if (shouldReturn) return;
+
             if (sourceRectangle.HasValue)
             {
                 sourceRect = sourceRectangle.Value;
@@ -137,6 +138,7 @@ namespace Barotrauma
             }
             size = new Vector2(sourceRect.Width, sourceRect.Height);
             rotation = newRotation;
+
             if (!list.Contains(this))
             {
                 list.Add(this);

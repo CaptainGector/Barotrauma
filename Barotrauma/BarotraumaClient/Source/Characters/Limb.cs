@@ -42,7 +42,7 @@ namespace Barotrauma
                         HitSoundTag = subElement.GetAttributeString("tag", "");
                         if (string.IsNullOrWhiteSpace(HitSoundTag))
                         {
-                            //legacy support
+                            //legacy support 
                             HitSoundTag = subElement.GetAttributeString("file", "");
                         }
                         break;
@@ -121,15 +121,14 @@ namespace Barotrauma
                     {
                         float dropRadius = body.BodyShape == PhysicsBody.Shape.Rectangle ? Math.Min(body.width, body.height) : body.radius;
                         GameMain.ParticleManager.CreateParticle(
-                            "waterdrop", 
-                            WorldPosition + Rand.Vector(Rand.Range(0.0f, ConvertUnits.ToDisplayUnits(dropRadius))), 
-                            ConvertUnits.ToDisplayUnits(body.LinearVelocity), 
+                            "waterdrop",
+                            WorldPosition + Rand.Vector(Rand.Range(0.0f, ConvertUnits.ToDisplayUnits(dropRadius))),
+                            ConvertUnits.ToDisplayUnits(body.LinearVelocity),
                             0, character.CurrentHull);
                         dripParticleTimer = 0.0f;
                     }
                 }
             }
-
             if (LightSource != null)
             {
                 LightSource.ParentSub = body.Submarine;

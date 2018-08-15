@@ -54,7 +54,7 @@ namespace Barotrauma
             CameraShake = element.GetAttributeFloat("camerashake", attack.Range * 0.1f);
         }
         
-        public void Explode(Vector2 worldPosition)
+        public void Explode(Vector2 worldPosition, Character causecharacter = null, string identifier = null)
         {
             Hull hull = Hull.FindHull(worldPosition);
 
@@ -69,6 +69,23 @@ namespace Barotrauma
             if (attack.GetStructureDamage(1.0f) > 0.0f)
             {
                 RangedStructureDamage(worldPosition, displayRange, attack.GetStructureDamage(1.0f));
+
+                //Door damage code
+                float displayRangeSqr = displayRange * displayRange;
+                foreach (Item item in Item.ItemList)
+                {
+                    float distSqr = Vector2.DistanceSquared(item.WorldPosition, worldPosition);
+                    if (distSqr > displayRangeSqr) continue;
+
+                    float distFactor = 1.0f - (float)Math.Sqrt(distSqr) / displayRange;
+
+                    //damage doors with some of the structuredamage
+                    var Door = item.GetComponent<Door>();
+                    if (Door != null && item.FixRequirements.Count > 0)
+                    {
+                        item.Condition -= (attack.GetStructureDamage(1.0f) * (distFactor)) / 4;
+                    }
+                }
             }
 
             if (empStrength > 0.0f)
@@ -78,7 +95,7 @@ namespace Barotrauma
                 {
                     float distSqr = Vector2.DistanceSquared(item.WorldPosition, worldPosition);
                     if (distSqr > displayRangeSqr) continue;
-                    
+
                     float distFactor = 1.0f - (float)Math.Sqrt(distSqr) / displayRange;
 
                     //damage repairable power-consuming items
@@ -100,7 +117,7 @@ namespace Barotrauma
 
             if (force == 0.0f && attack.Stun == 0.0f && attack.GetDamage(1.0f) == 0.0f) return;
 
-            ApplyExplosionForces(worldPosition, attack, force);
+            ApplyExplosionForces(worldPosition, attack, force, causecharacter, identifier);
 
             if (flames && GameMain.Client == null)
             {
@@ -141,9 +158,11 @@ namespace Barotrauma
                 MathHelper.Clamp(particlePos.Y, hull.WorldRect.Y - hull.WorldRect.Height, hull.WorldRect.Y));
         }
 
-        public static void ApplyExplosionForces(Vector2 worldPosition, Attack attack, float force)
+        public static void ApplyExplosionForces(Vector2 worldPosition, Attack attack, float force, Character causecharacter = null, string identifier = null)
         {
             if (attack.Range <= 0.0f) return;
+
+            if (identifier == "") identifier = "Explosion";
 
             foreach (Character c in Character.CharacterList)
             {
@@ -175,7 +194,7 @@ namespace Barotrauma
                         attack.GetDamage(1.0f) / c.AnimController.Limbs.Length * distFactor, 
                         attack.GetBleedingDamage(1.0f) / c.AnimController.Limbs.Length * distFactor, 
                         attack.Stun * distFactor, 
-                        false);
+                        false, 0f, causecharacter, identifier);
 
                     if (limb.WorldPosition != worldPosition && force > 0.0f)
                     {

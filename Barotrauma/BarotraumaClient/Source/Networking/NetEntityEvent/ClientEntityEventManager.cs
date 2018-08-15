@@ -137,12 +137,12 @@ namespace Barotrauma.Networking
 
             UInt16 firstEventID = msg.ReadUInt16();
             int eventCount = msg.ReadByte();
-            
+
             for (int i = 0; i < eventCount; i++)
             {
-                UInt16 thisEventID = (UInt16)(firstEventID + (UInt16)i);                
+                UInt16 thisEventID = (UInt16)(firstEventID + (UInt16)i);
                 UInt16 entityID = msg.ReadUInt16();
-                
+
                 if (entityID == 0)
                 {
                     if (GameSettings.VerboseLogging)
@@ -157,14 +157,14 @@ namespace Barotrauma.Networking
                 }
 
                 byte msgLength = msg.ReadByte();
-                
+
                 IServerSerializable entity = Entity.FindEntityByID(entityID) as IServerSerializable;
                 entities.Add(entity);
 
                 //skip the event if we've already received it or if the entity isn't found
                 if (thisEventID != (UInt16)(lastReceivedID + 1) || entity == null)
                 {
-                    if (thisEventID != (UInt16) (lastReceivedID + 1))
+                    if (thisEventID != (UInt16)(lastReceivedID + 1))
                     {
                         if (GameSettings.VerboseLogging)
                         {
@@ -181,7 +181,7 @@ namespace Barotrauma.Networking
                             "Received msg " + thisEventID + ", entity " + entityID + " not found",
                             Microsoft.Xna.Framework.Color.Red);
                     }
-                    
+
                     msg.Position += msgLength * 8;
                 }
                 else

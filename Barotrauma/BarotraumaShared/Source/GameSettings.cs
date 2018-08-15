@@ -25,7 +25,7 @@ namespace Barotrauma
         public bool EnableSplashScreen { get; set; }
 
         //public bool FullScreenEnabled { get; set; }
-
+        
         private KeyOrMouse[] keyMapping;
 
         private WindowMode windowMode;
@@ -58,7 +58,7 @@ namespace Barotrauma
             set
             {
                 if (value == characterHeadIndex) return;
-                // Begin saving coroutine. Remove any existing save coroutines if one is running.
+                // Begin saving coroutine. Remove any existing save coroutines if one is running. 
                 if (CoroutineManager.IsCoroutineRunning("saveCoroutine")) { CoroutineManager.StopCoroutines("saveCoroutine"); }
                 CoroutineManager.StartCoroutine(ApplyUnsavedChanges(), "saveCoroutine");
 
@@ -73,7 +73,7 @@ namespace Barotrauma
             set
             {
                 if (value == characterGender) return;
-                // Begin saving coroutine. Remove any existing save coroutines if one is running.
+                // Begin saving coroutine. Remove any existing save coroutines if one is running. 
                 if (CoroutineManager.IsCoroutineRunning("saveCoroutine")) { CoroutineManager.StopCoroutines("saveCoroutine"); }
                 CoroutineManager.StartCoroutine(ApplyUnsavedChanges(), "saveCoroutine");
 
@@ -82,6 +82,7 @@ namespace Barotrauma
         }
 
         private bool unsavedSettings;
+
         public bool UnsavedSettings
         {
             get
@@ -252,6 +253,8 @@ namespace Barotrauma
             keyMapping[(int)InputType.Use] = new KeyOrMouse(0);
             keyMapping[(int)InputType.Aim] = new KeyOrMouse(1);
 
+            keyMapping[(int)InputType.Ragdoll] = new KeyOrMouse(Keys.Space);
+
             foreach (XElement subElement in doc.Root.Elements())
             {
                 switch (subElement.Name.ToString().ToLowerInvariant())
@@ -308,7 +311,7 @@ namespace Barotrauma
                 {
                     case "contentpackage":
                         string path = subElement.GetAttributeString("path", "");
-                        
+
                         SelectedContentPackage = ContentPackage.list.Find(cp => cp.Path == path);
                         if (SelectedContentPackage == null) SelectedContentPackage = new ContentPackage(path);
                         break;

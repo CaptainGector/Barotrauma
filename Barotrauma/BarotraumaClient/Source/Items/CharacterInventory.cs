@@ -207,7 +207,19 @@ namespace Barotrauma
                 }
             }
 
-            if (character == Character.Controlled)
+            if (character == Character.Spied)
+            {
+                for (int i = 0; i < capacity; i++)
+                {
+                    if ((selectedSlot == null || selectedSlot.SlotIndex != i) &&
+                        Items[i] != null && Items[i].CanUseOnSelf && character.HasSelectedItem(Items[i]))
+                    {
+                        //-3 because selected items are in slots 3 and 4 (hands)
+                        useOnSelfButton[i - 3].Update(deltaTime);
+                    }
+                }
+            }
+            else if (character == Character.Controlled)
             {
                 for (int i = 0; i < capacity; i++)
                 {
@@ -231,13 +243,25 @@ namespace Barotrauma
                     rootInventory = rootContainer.ParentInventory != null ?
                         rootContainer.ParentInventory : rootContainer.GetComponent<ItemContainer>().Inventory;
                 }
-
-                if (rootInventory != null &&
-                    rootInventory.Owner != Character.Controlled &&
-                    rootInventory.Owner != Character.Controlled.SelectedConstruction &&
-                    rootInventory.Owner != Character.Controlled.SelectedCharacter)
+                if (Character.Spied != null)
                 {
-                    draggingItem = null;
+                    if (rootInventory != null &&
+                        rootInventory.Owner != Character.Spied &&
+                        rootInventory.Owner != Character.Spied.SelectedConstruction &&
+                        rootInventory.Owner != Character.Spied.SelectedCharacter)
+                    {
+                        draggingItem = null;
+                    }
+                }
+                else
+                {
+                    if (rootInventory != null &&
+                        rootInventory.Owner != Character.Controlled &&
+                        rootInventory.Owner != Character.Controlled.SelectedConstruction &&
+                        rootInventory.Owner != Character.Controlled.SelectedCharacter)
+                    {
+                        draggingItem = null;
+                    }
                 }
             }
 
@@ -311,7 +335,18 @@ namespace Barotrauma
 
             base.Draw(spriteBatch);
 
-            if (character == Character.Controlled)
+            if (character == Character.Spied)
+            {
+                for (int i = 0; i < capacity; i++)
+                {
+                    if ((selectedSlot == null || selectedSlot.SlotIndex != i) &&
+                        Items[i] != null && Items[i].CanUseOnSelf && character.HasSelectedItem(Items[i]))
+                    {
+                        useOnSelfButton[i - 3].Draw(spriteBatch);
+                    }
+                }
+            }
+            else if (character == Character.Controlled)
             {
                 for (int i = 0; i < capacity; i++)
                 {

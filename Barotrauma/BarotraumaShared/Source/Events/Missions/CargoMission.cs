@@ -9,7 +9,7 @@ namespace Barotrauma
     {
         private XElement itemConfig;
 
-        private List<Item> items;
+        public List<Item> items;
 
         private int requiredDeliveryAmount;
 

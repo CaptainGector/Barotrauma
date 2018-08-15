@@ -12,6 +12,8 @@ namespace Barotrauma
         private Submarine selectedShuttle;
         private bool usingShuttle = true;
 
+        Boolean IsStarting = true;
+
         public Submarine SelectedSub
         {
             get { return selectedSub; }
@@ -127,9 +129,6 @@ namespace Barotrauma
             selectedSub = subs.First(s => !s.HasTag(SubmarineTag.Shuttle));
             selectedShuttle = subs.First(s => s.HasTag(SubmarineTag.Shuttle));
 
-            DebugConsole.NewMessage("Selected sub: " + SelectedSub.Name, Color.White);
-            DebugConsole.NewMessage("Selected shuttle: " + SelectedShuttle.Name, Color.White);
-
             gameModes = GameModePreset.list.ToArray();
         }
         
@@ -175,14 +174,18 @@ namespace Barotrauma
             lastUpdateID++;
         }
 
+        /*
         public override void Select()
         {
             base.Select();
             GameMain.Server.Voting.ResetVotes(GameMain.Server.ConnectedClients);
         }
+        */
 
         public void RandomizeSettings()
         {
+            GameMain.Server.Voting.ResetVotes(GameMain.Server.ConnectedClients);
+
             if (GameMain.Server.RandomizeSeed) LevelSeed = ToolBox.RandomSeed(8);
 
             if (GameMain.Server.SubSelectionMode == SelectionMode.Random)
@@ -195,6 +198,9 @@ namespace Barotrauma
                 var allowedGameModes = Array.FindAll(gameModes, m => !m.IsSinglePlayer && m.Name != "Campaign");
                 SelectedModeName = allowedGameModes[Rand.Range(0, allowedGameModes.Length)].Name;
             }
+
+            GameMain.NetworkMember.EndVoteCount = 0;
+            GameMain.NetworkMember.EndVoteMax = GameMain.Server.maxPlayers;
         }
     }
 }

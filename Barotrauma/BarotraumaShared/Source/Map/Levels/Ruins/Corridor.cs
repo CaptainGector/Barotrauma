@@ -9,7 +9,7 @@ namespace Barotrauma.RuinGeneration
     {
         private bool isHorizontal;
 
-        // TODO: fix implicit hiding
+        // TODO: fix implicit hiding 
         public Rectangle Rect
         {
             get { return rect; }

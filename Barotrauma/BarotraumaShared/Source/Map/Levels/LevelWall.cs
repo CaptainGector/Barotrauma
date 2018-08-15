@@ -17,7 +17,7 @@ namespace Barotrauma
         }
 
         private List<Body> bodies;
-        
+
         public LevelWall(List<Vector2> edgePositions, Vector2 extendAmount, Color color, Level level)
         {
             cells = new List<VoronoiCell>();

@@ -196,11 +196,12 @@ namespace Barotrauma
                     return;
                 }
 
-                List<Submarine> subsToMove = submarine.GetConnectedSubs();
-                foreach (Submarine dockedSub in subsToMove)
+                List<Submarine> subsToMove = new List<Submarine>() { this.submarine };
+                subsToMove.AddRange(submarine.DockedTo);
+
+                foreach (Submarine dockedSub in submarine.DockedTo)
                 {
-                    if (dockedSub == submarine) continue;
-                    //clear the position buffer of the docked subs to prevent unnecessary position corrections
+                    //clear the position buffer of the docked sub to prevent unnecessary position corrections
                     dockedSub.SubBody.memPos.Clear();
                 }
 
@@ -215,6 +216,7 @@ namespace Barotrauma
                 }
 
                 bool displace = moveAmount.LengthSquared() > 100.0f * 100.0f;
+
                 foreach (Submarine sub in subsToMove)
                 {
                     sub.PhysicsBody.SetTransform(sub.PhysicsBody.SimPosition + ConvertUnits.ToSimUnits(moveAmount), 0.0f);
@@ -223,12 +225,19 @@ namespace Barotrauma
                     if (displace) sub.SubBody.DisplaceCharacters(moveAmount);
                 }
 
-                if (closestSub != null && subsToMove.Contains(closestSub))
+                if (closestSub != null && subsToMove.Contains(closestSub))                     
                 {
                     GameMain.GameScreen.Cam.Position += moveAmount;
                     if (GameMain.GameScreen.Cam.TargetPos != Vector2.Zero) GameMain.GameScreen.Cam.TargetPos += moveAmount;
 
-                    if (Character.Controlled != null) Character.Controlled.CursorPosition += moveAmount;
+                    if (Character.Spied != null)
+                    {
+                        //Character.Spied.CursorPosition += moveAmount;
+                    }
+                    else if (Character.Controlled != null)
+                    {
+                        Character.Controlled.CursorPosition += moveAmount;
+                    }
                 }
 
                 return;
@@ -271,7 +280,14 @@ namespace Barotrauma
 
             ApplyForce(totalForce);
 
-            UpdateDepthDamage(deltaTime);
+            if (GameMain.NilMod.UseProgressiveCrush)
+            {
+                NilModUpdateDepthDamage(deltaTime);
+            }
+            else
+            {
+                UpdateDepthDamage(deltaTime);
+            }
         }
         
         /// <summary>
@@ -485,7 +501,9 @@ namespace Barotrauma
             Vector2 avgContactNormal = Vector2.Zero;
             foreach (Contact levelContact in levelContacts)
             {
-                levelContact.GetWorldManifold(out Vector2 contactNormal, out FixedArray2<Vector2> temp);
+                Vector2 contactNormal;
+                FixedArray2<Vector2> temp;
+                levelContact.GetWorldManifold(out contactNormal, out temp);
 
                 //if the contact normal is pointing from the limb towards the level cell it's touching, flip the normal
                 VoronoiCell cell = levelContact.FixtureB.UserData is VoronoiCell ?
@@ -507,21 +525,7 @@ namespace Barotrauma
             float contactDot = Vector2.Dot(Body.LinearVelocity, -avgContactNormal);
             if (contactDot > 0.001f)
             {
-                Vector2 velChange = Vector2.Normalize(Body.LinearVelocity) * contactDot;
-                if (!MathUtils.IsValid(velChange))
-                {
-                    GameAnalyticsManager.AddErrorEventOnce(
-                        "SubmarineBody.HandleLimbCollision:" + submarine.ID,
-                        GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
-                        "Invalid velocity change in SubmarineBody.HandleLimbCollision (submarine velocity: " + Body.LinearVelocity
-                        + ", avgContactNormal: " + avgContactNormal
-                        + ", contactDot: " + contactDot
-                        + ", velChange: " + velChange + ")");
-                    return;
-                }
-
-
-                Body.LinearVelocity -= velChange;
+                Body.LinearVelocity -= Vector2.Normalize(Body.LinearVelocity) * contactDot;
 
                 float damageAmount = contactDot * Body.Mass / limb.character.Mass;
 
@@ -619,7 +623,7 @@ namespace Barotrauma
                 levelContact.GetWorldManifold(out contactNormal, out temp);
 
                 //if the contact normal is pointing from the sub towards the level cell we collided with, flip the normal
-                VoronoiCell cell = levelContact.FixtureB.UserData is VoronoiCell ? 
+                VoronoiCell cell = levelContact.FixtureB.UserData is VoronoiCell ?
                     ((VoronoiCell)levelContact.FixtureB.UserData) : ((VoronoiCell)levelContact.FixtureA.UserData);
 
                 var cellDiff = ConvertUnits.ToDisplayUnits(Body.SimPosition) - cell.Center;
@@ -668,17 +672,18 @@ namespace Barotrauma
                 GameMain.GameScreen.Cam.Shake = impact * 2.0f;
             }
 
-            Vector2 impulse = direction * impact * 0.5f;            
-            impulse = impulse.ClampLength(5.0f);            
+            Vector2 impulse = direction * impact * 0.5f;
+            impulse = impulse.ClampLength(5.0f);
             foreach (Character c in Character.CharacterList)
             {
                 if (c.Submarine != submarine) continue;
                 if (impact > 2.0f) c.SetStun((impact - 2.0f) * 0.1f);
-                
+
                 foreach (Limb limb in c.AnimController.Limbs)
                 {
                     limb.body.ApplyLinearImpulse(limb.Mass * impulse, 20.0f);
                 }
+
                 c.AnimController.Collider.ApplyLinearImpulse(c.AnimController.Collider.Mass * impulse, 20.0f);
             }
 
@@ -715,6 +720,76 @@ namespace Barotrauma
                     maxDamageStructure.Tags);            
             }
 #endif
+        }
+
+        //Depth Damage Recode Attempt
+        private void NilModUpdateDepthDamage(float deltaTime)
+        {
+            if (Position.Y > DamageDepth) return;
+
+            float depth = DamageDepth - Position.Y;
+
+            depthDamageTimer -= deltaTime;
+
+            if (depthDamageTimer > 0.0f) return;
+
+            //Resistance multiplier of Wall Health vs Depth, effects how deep it must be before damage begins
+            //float CrushDepthHealthResistMultiplier = 0.20f;
+            //Addition of Wall Health vs Depth, effects how deep it must be before damage begins (Helps protect windows)
+            //float CrushDepthBaseHealthResist = 200f;
+
+            //Multiplier for the level of damage incurred from depth increase.
+            //float CrushDamageMultiplier = 0.15f;
+            //The base additive damage on submarine crushing.
+            //float CrushBaseDamage = 0f;
+            //Damage added based on a walls maximum health value.
+            //float CrushWallHealthDamagePercent = 0.10f;
+
+            //The odds a section of a wall will take damage, setting this too high will typically cause CPU Lag
+            //float CrushWallBaseDamageChance = 3f;
+            //Chance % Increase per 1000 depth past 3000 Meters (100 meters)
+            //float CrushWallDamageChanceIncrease = 1.0f;
+            //Maximum chance to damage a wall
+            //float CrushWallMaxDamageChance = 30f;
+
+            //Rate of checking for new damage
+            //float CrushInterval = 3.5f;
+
+            //Calculate once anything reused
+            float CurrentDamageChance = Math.Min(GameMain.NilMod.PCrushWallBaseDamageChance + (GameMain.NilMod.PCrushWallDamageChanceIncrease * (depth * 0.0001f)), GameMain.NilMod.PCrushWallMaxDamageChance);
+            float CrushDamage = GameMain.NilMod.PCrushBaseDamage + ((depth * 0.001f) * GameMain.NilMod.PCrushDamageDepthMultiplier);
+
+            foreach (Structure wall in Structure.WallList)
+            {
+                if (wall.Submarine != submarine) continue;
+                //Skip undamagables from being checked
+                if (!wall.HasBody || wall.IsPlatform) continue;
+
+                if ((GameMain.NilMod.PCrushDepthBaseHealthResist + (wall.Health * GameMain.NilMod.PCrushDepthHealthResistMultiplier)) < depth * 0.01f)
+                {
+                    //DebugConsole.NewMessage("Crushing wall " + wall.Name.ToString() + " with health: " + wall.Health + " Against Calculated Depth: " + depth * 0.01f, Color.White);
+
+                    if (Character.Controlled != null && Character.Controlled.Submarine == submarine)
+                    {
+                        GameMain.GameScreen.Cam.Shake = Math.Max(GameMain.GameScreen.Cam.Shake, Math.Min(depth * 0.001f, 50.0f));
+                    }
+                    
+                    for (int i = 0; i < wall.SectionCount; i++)
+                    {
+                        //Check chance to damage wall piece as well as if the wall piece is not already obliterated.
+                        if (wall.SectionDamage(i) < wall.Health)
+                        {
+                            if (Rand.Range(0f, 1f) > (1f - (CurrentDamageChance / 100f)))
+                            {
+                                wall.AddDamage(i, CrushDamage + (wall.Health * GameMain.NilMod.PCrushWallHealthDamagePercent / 100));
+                                //DebugConsole.NewMessage("Damaged section of wall: " + wall.Name.ToString() + " with damage: " + wall.SectionDamage(i) + "/" + wall.Health + " Against Calculated Depth: " + depth * 0.01f + " at chance: " + CurrentDamageChance + "%.", Color.White);
+                            }
+                        }
+                    }
+                }
+            }
+
+            depthDamageTimer = GameMain.NilMod.PCrushInterval;
         }
 
     }

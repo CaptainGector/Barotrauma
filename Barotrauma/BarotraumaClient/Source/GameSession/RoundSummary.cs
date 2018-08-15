@@ -35,7 +35,7 @@ namespace Barotrauma
             GUIFrame innerFrame = new GUIFrame(new Rectangle(0, 0, width, height), null, Alignment.Center, "", frame);
 
             GUIListBox listBox = new GUIListBox(new Rectangle(0, 0, 0, height - (int)(30 + innerFrame.Padding.Y + innerFrame.Padding.W)), "", innerFrame);
-                        
+
             if (!singleplayer)
             {
                 SoundPlayer.OverrideMusicType = gameOver ? "crewdead" : "endround";
@@ -64,7 +64,7 @@ namespace Barotrauma
             {
                 new GUITextBlock(new Rectangle(0, 0, 0, 40), TextManager.Get("Mission") + ": " + GameMain.GameSession.Mission.Name, "", listBox, GUI.LargeFont);
 
-                var missionInfo = new GUITextBlock(new Rectangle(0, 0, listBox.Rect.Width-20, 0),
+                var missionInfo = new GUITextBlock(new Rectangle(0, 0, listBox.Rect.Width - 20, 0),
                     (GameMain.GameSession.Mission.Completed) ? GameMain.GameSession.Mission.SuccessMessage : GameMain.GameSession.Mission.FailureMessage,
                     "", null, true);
                 missionInfo.Rect = new Rectangle(0, 0, missionInfo.Rect.Width, missionInfo.Rect.Height + 20);
@@ -77,10 +77,10 @@ namespace Barotrauma
 
                 if (GameMain.GameSession.Mission.Completed && singleplayer)
                 {
-                    var missionReward = new GUITextBlock(new Rectangle(0, 0, listBox.Rect.Width-20, 0), TextManager.Get("Reward") + ": " + GameMain.GameSession.Mission.Reward, "", Alignment.BottomLeft, Alignment.BottomLeft, null);
+                    var missionReward = new GUITextBlock(new Rectangle(0, 0, listBox.Rect.Width - 20, 0), TextManager.Get("Reward") + ": " + GameMain.GameSession.Mission.Reward, "", Alignment.BottomLeft, Alignment.BottomLeft, null);
                     missionReward.Rect = new Rectangle(0, 0, missionReward.Rect.Width, missionReward.Rect.Height + 20);
                     listBox.AddChild(missionReward);
-                }  
+                }
             }
             else
             {
@@ -109,7 +109,7 @@ namespace Barotrauma
 
                 characterInfo.CreateCharacterFrame(characterFrame,
                     characterInfo.Job != null ? (characterInfo.Name + '\n' + "(" + characterInfo.Job.Name + ")") : characterInfo.Name, null);
-
+                
                 string statusText = TextManager.Get("StatusOK");
                 Color statusColor = Color.DarkGreen;
 
@@ -138,7 +138,7 @@ namespace Barotrauma
                     Alignment.BottomLeft, Alignment.Center,
                     null, characterFrame, true, GUI.SmallFont);
 
-                x += characterFrame.Rect.Width + 10;
+                x += characterFrame.Rect.Width + 10;                
             }
 
 

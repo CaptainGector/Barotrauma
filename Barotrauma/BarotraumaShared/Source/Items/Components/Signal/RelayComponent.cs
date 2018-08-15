@@ -44,14 +44,14 @@ namespace Barotrauma.Items.Components
         {
             IsActive = true;
         }
-        
+
         public override void Update(float deltaTime, Camera cam)
         {
             base.Update(deltaTime, cam);
 
             item.SendSignal(0, IsOn ? "1" : "0", "state_out", null);
 
-            if (Math.Min(-currPowerConsumption, PowerLoad) > maxPower) item.Condition = 0.0f;
+            if (Math.Min(-currPowerConsumption, PowerLoad) > (maxPower * GameMain.NilMod.ElectricalRelayMaxPowerMultiplier)) item.Condition = 0.0f;
         }
         
         public override void ReceiveSignal(int stepsTaken, string signal, Connection connection, Item source, Character sender, float power=0.0f)
@@ -71,7 +71,7 @@ namespace Barotrauma.Items.Components
 
                 if (connectionNumber > 0) outConnection += connectionNumber;
 
-                item.SendSignal(stepsTaken, signal, outConnection, sender, power);
+                item.SendSignal(stepsTaken, signal, outConnection, sender,  power);
             }
             else if (connection.Name == "toggle")
             {

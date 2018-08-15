@@ -49,7 +49,7 @@ namespace Barotrauma
         {
             PurchasedItem purchasedItem = PurchasedItems.Find(pi => pi.itemPrefab == item);
 
-            if(purchasedItem != null && Quantity == 1)
+            if (purchasedItem != null && Quantity == 1)
             {
                 campaign.Money -= item.Price;
                 purchasedItem.quantity += 1;
@@ -66,7 +66,6 @@ namespace Barotrauma
 
         public void SellItem(ItemPrefab item, int quantity = 1)
         {
-            campaign.Money += (item.Price * quantity);
             PurchasedItem purchasedItem = PurchasedItems.Find(pi => pi.itemPrefab == item);
             if (purchasedItem != null && purchasedItem.quantity - quantity > 0)
             {
@@ -120,14 +119,14 @@ namespace Barotrauma
                 ItemContainer itemContainer = null;
                 if (!string.IsNullOrEmpty(pi.itemPrefab.CargoContainerName))
                 {
-                    itemContainer = availableContainers.Keys.ToList().Find(ac => 
-                        ac.Item.Prefab.NameMatches(pi.itemPrefab.CargoContainerName) || 
+                    itemContainer = availableContainers.Keys.ToList().Find(ac =>
+                        ac.Item.Prefab.NameMatches(pi.itemPrefab.CargoContainerName) ||
                         ac.Item.Prefab.Tags.Contains(pi.itemPrefab.CargoContainerName.ToLowerInvariant()));
 
                     if (itemContainer == null)
                     {
-                        containerPrefab = MapEntityPrefab.List.Find(ep => 
-                            ep.NameMatches(pi.itemPrefab.CargoContainerName) || 
+                        containerPrefab = MapEntityPrefab.List.Find(ep =>
+                            ep.NameMatches(pi.itemPrefab.CargoContainerName) ||
                             (ep.Tags != null && ep.Tags.Contains(pi.itemPrefab.CargoContainerName.ToLowerInvariant()))) as ItemPrefab;
 
                         if (containerPrefab == null)
@@ -150,6 +149,7 @@ namespace Barotrauma
                         }
                     }                    
                 }
+
                 for (int i = 0; i < pi.quantity; i++)
                 {
                     if (itemContainer == null)
@@ -177,7 +177,6 @@ namespace Barotrauma
                             Entity.Spawner.CreateNetworkEvent(itemContainer.Item, false);
                         }
                     }
-
                     //place in the container
                     if (GameMain.Server != null)
                     {
@@ -198,9 +197,10 @@ namespace Barotrauma
                     if (availableContainers.ContainsKey(itemContainer) && availableContainers[itemContainer] <= 0)
                     {
                         availableContainers.Remove(itemContainer);
-                    }                    
+                    }
                 }
             }
+
             itemsToSpawn.Clear();
         }
     }

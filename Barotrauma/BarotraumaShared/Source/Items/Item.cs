@@ -52,6 +52,9 @@ namespace Barotrauma
         private bool needsPositionUpdate;
         private float lastSentCondition;
 
+        public float? gwcooldown;
+        public string gwlastuser = "";
+
         private float condition;
 
         private bool inWater;
@@ -274,9 +277,9 @@ namespace Barotrauma
             }
         }
 
-        /// <summary>
-        /// A list of items the last signal sent by this item went through
-        /// </summary>
+        /// <summary> 
+        /// A list of items the last signal sent by this item went through 
+        /// </summary> 
         public List<Item> LastSentSignalRecipients
         {
             get;
@@ -374,7 +377,7 @@ namespace Barotrauma
             tags                = new HashSet<string>();
                        
             rect = newRect;
-                        
+
             condition = prefab.Health;
             lastSentCondition = condition;
 
@@ -414,7 +417,7 @@ namespace Barotrauma
                         components.Add(ic);
 
                         if (ic is IDrawableComponent && ic.Drawable) drawableComponents.Add(ic as IDrawableComponent);
-                        
+
                         break;
                 }
             }
@@ -426,8 +429,8 @@ namespace Barotrauma
                 if (statusEffectLists == null)
                     statusEffectLists = new Dictionary<ActionType, List<StatusEffect>>();
 
-                //go through all the status effects of the component 
-                //and add them to the corresponding statuseffect list
+                //go through all the status effects of the component  
+                //and add them to the corresponding statuseffect list 
                 foreach (List<StatusEffect> componentEffectList in ic.statusEffectLists.Values)
                 {
                     ActionType actionType = componentEffectList.First().type;
@@ -502,7 +505,7 @@ namespace Barotrauma
                     clone.components[i].requiredItems[j].JoinedNames = components[i].requiredItems[j].JoinedNames;
                 }
             }
-            
+
             if (ContainedItems != null)
             {
                 foreach (Item containedItem in ContainedItems)
@@ -631,7 +634,7 @@ namespace Barotrauma
         {
             foreach (Item item in ItemList) item.FindHull();
         }
-        
+
         public Hull FindHull()
         {
             if (parentInventory != null && parentInventory.Owner != null)
@@ -667,6 +670,7 @@ namespace Barotrauma
             if (Container == null) return null;
 
             Item rootContainer = Container;
+
             while (rootContainer.Container != null)
             {
                 rootContainer = rootContainer.Container;
@@ -707,20 +711,33 @@ namespace Barotrauma
             return false;
         }
 
-        public void ApplyStatusEffects(ActionType type, float deltaTime, Character character = null, bool isNetworkEvent = false)
+
+        public void ApplyStatusEffects(ActionType type, float deltaTime, Character character = null, bool isNetworkEvent = false, Character causecharacter = null, string identifier = "")
         {
             if (statusEffectLists == null) return;
 
             List<StatusEffect> statusEffects;
             if (!statusEffectLists.TryGetValue(type, out statusEffects)) return;
 
+            if(identifier == "")
+            {
+                if (ContainedItems != null && ContainedItems.Length > 0)
+                {
+                    identifier = Name + " (" + string.Join(", ", Array.FindAll(ContainedItems, i => i != null).Select(i => i.Name)) + ")";
+                }
+                else
+                {
+                    identifier = Name;
+                }
+            }
+
             foreach (StatusEffect effect in statusEffects)
             {
-                ApplyStatusEffect(effect, type, deltaTime, character, isNetworkEvent);
+                ApplyStatusEffect(effect, type, deltaTime, character, isNetworkEvent, causecharacter, identifier);
             }
         }
         
-        public void ApplyStatusEffect(StatusEffect effect, ActionType type, float deltaTime, Character character = null, bool isNetworkEvent = false)
+        public void ApplyStatusEffect(StatusEffect effect, ActionType type, float deltaTime, Character character = null, bool isNetworkEvent = false, Character causecharacter = null, string identifier = "")
         {
             if (!isNetworkEvent)
             {
@@ -786,11 +803,11 @@ namespace Barotrauma
 
             if (Container != null && effect.Targets.HasFlag(StatusEffect.TargetType.Parent)) targets.Add(Container);
             
-            effect.Apply(type, deltaTime, this, targets);            
+            effect.Apply(type, deltaTime, this, targets, causecharacter, identifier);            
         }
 
 
-        public AttackResult AddDamage(Character attacker, Vector2 worldPosition, Attack attack, float deltaTime, bool playSound = true)
+        public AttackResult AddDamage(Character attacker, Vector2 worldPosition, Attack attack, float deltaTime, bool playSound = true, string identifier = "")
         {
             if (prefab.Indestructible) return new AttackResult();
 
@@ -803,7 +820,7 @@ namespace Barotrauma
         private bool IsInWater()
         {
             if (CurrentHull == null) return true;
-                        
+            
             float surfaceY = CurrentHull.Surface;
 
             return CurrentHull.WaterVolume > 0.0f && Position.Y < surfaceY;
@@ -812,6 +829,12 @@ namespace Barotrauma
 
         public override void Update(float deltaTime, Camera cam)
         {
+            if (gwcooldown >= 0f)
+            {
+                gwcooldown -= deltaTime;
+                if (gwcooldown <= 0f) gwcooldown = null;
+            }
+
             ApplyStatusEffects(ActionType.Always, deltaTime, null);
 
             foreach (ItemComponent ic in components)
@@ -886,6 +909,7 @@ namespace Barotrauma
             }
 
             inWater = IsInWater();
+
             if (inWater)
             {
                 bool waterProof = WaterProof;
@@ -1035,8 +1059,8 @@ namespace Barotrauma
                 }
             }
         }
-        
-        public void SendSignal(int stepsTaken, string signal, string connectionName, Character sender, float power = 0.0f)
+
+        public void SendSignal(int stepsTaken, string signal, string connectionName, Character sender, float power = 0.0f, string identifier = "")
         {
             LastSentSignalRecipients.Clear();
             if (connections == null) return;
@@ -1050,20 +1074,20 @@ namespace Barotrauma
             {
                 //use a coroutine to prevent infinite loops by creating a one 
                 //frame delay if the "signal chain" gets too long
-                CoroutineManager.StartCoroutine(SendSignal(signal, c, sender, power));
+                CoroutineManager.StartCoroutine(SendSignal(signal, c, sender, power, identifier));
             }
             else
             {
-                c.SendSignal(stepsTaken, signal, this, sender, power);
+                c.SendSignal(stepsTaken, signal, this, sender, power, identifier);
             }            
         }
 
-        private IEnumerable<object> SendSignal(string signal, Connection connection, Character sender, float power = 0.0f)
+        private IEnumerable<object> SendSignal(string signal, Connection connection, Character sender, float power = 0.0f, string identifier = "")
         {
             //wait one frame
             yield return CoroutineStatus.Running;
 
-            connection.SendSignal(0, signal, this, sender, power);
+            connection.SendSignal(0, signal, this, sender, power, identifier);
 
             yield return CoroutineStatus.Success;
         }
@@ -1109,7 +1133,7 @@ namespace Barotrauma
                 else
                 {
                     pickHit = (forceActionKey && ic.CanBePicked) || picker.IsKeyHit(ic.PickKey);
-                    selectHit = (forceSelectKey && ic.CanBeSelected)  || picker.IsKeyHit(ic.SelectKey);
+                    selectHit = (forceSelectKey && ic.CanBeSelected) || picker.IsKeyHit(ic.SelectKey);
                 }
 
                 if (!pickHit && !selectHit) continue;
@@ -1146,6 +1170,10 @@ namespace Barotrauma
             else if (selected)
             {
                 picker.SelectedConstruction = this;
+                if(this.GetComponent<Steering>() != null)
+                {
+                    Steering steering = this.GetComponent<Steering>();
+                }
             }
 
 #if CLIENT
@@ -1165,7 +1193,7 @@ namespace Barotrauma
         }
 
 
-        public void Use(float deltaTime, Character character = null)
+        public void Use(float deltaTime, Character character = null, Character causecharacter = null, string identifier = "")
         {
             if (condition == 0.0f) return;
 
@@ -1182,7 +1210,7 @@ namespace Barotrauma
                     ic.PlaySound(ActionType.OnUse, WorldPosition);
 #endif
     
-                    ic.ApplyStatusEffects(ActionType.OnUse, deltaTime, character);
+                    ic.ApplyStatusEffects(ActionType.OnUse, deltaTime, character, causecharacter, identifier);
 
                     if (ic.DeleteOnUse) remove = true;
                 }
@@ -1257,6 +1285,22 @@ namespace Barotrauma
 
             if (Container != null)
             {
+                if (GameMain.NilMod.EnableGriefWatcher && GameMain.Server != null && dropper != null)
+                {
+                    Barotrauma.Networking.Client warnedclient = GameMain.Server.ConnectedClients.Find(c => c.Character == dropper);
+
+                    if (NilMod.NilModGriefWatcher.ReactorLastFuelRemoved && Container.GetComponent<Reactor>() != null)
+                    {
+                        if(Container.ContainedItems.Count() == 1)
+                        {
+                            if (!CoroutineManager.IsCoroutineRunning("GWwarnfuelremoved_" + warnedclient.Character.Name))
+                            {
+                                CoroutineManager.StartCoroutine(Reactor.WarnFuelRemoved(warnedclient, Container, this), "GWwarnfuelremoved_" + warnedclient.Character.Name);
+                            }
+                        }
+                    }
+                }
+
                 if (body != null)
                 {
                     body.Enabled = true;
@@ -1335,6 +1379,7 @@ namespace Barotrauma
             switch (eventType)
             {
                 case NetEntityEvent.Type.ComponentState:
+                    string componentErrorMsg = "";
                     if (extraData.Length < 2 || !(extraData[1] is int))
                     {
                         errorMsg = "Failed to write a component state event for the item \"" + Name + "\" - component index not given.";
@@ -1409,14 +1454,13 @@ namespace Barotrauma
 
             if (!string.IsNullOrEmpty(errorMsg))
             {
-                //something went wrong - rewind the write position and write invalid event type to prevent creating an unreadable event
+                //something went wrong - rewind the write position and write invalid event type to prevent creating an unreadable event 
                 msg.ReadBits(msg.Data, 0, initialWritePos);
                 msg.LengthBits = initialWritePos;
                 msg.WriteRangedInteger(0, Enum.GetValues(typeof(NetEntityEvent.Type)).Length - 1, (int)NetEntityEvent.Type.Invalid);
                 DebugConsole.Log(errorMsg);
                 GameAnalyticsManager.AddErrorEventOnce("Item.ServerWrite:" + errorMsg, GameAnalyticsSDK.Net.EGAErrorSeverity.Error, errorMsg);
             }
-
         }
 
         public void ServerRead(ClientNetObject type, NetBuffer msg, Client c) 
@@ -1462,12 +1506,40 @@ namespace Barotrauma
                     if (ContainedItems == null || ContainedItems.All(i => i == null))
                     {
                         GameServer.Log(c.Character.LogName + " used item " + Name, ServerLog.MessageType.ItemInteraction);
+
+                        if (GameMain.NilMod.EnableGriefWatcher)
+                        {
+                            //Self Usage Check (And Contained)
+                            for (int y = 0; y < NilMod.NilModGriefWatcher.GWListUse.Count; y++)
+                            {
+                                if (NilMod.NilModGriefWatcher.GWListUse[y] == Name)
+                                {
+                                    NilMod.NilModGriefWatcher.SendWarning(c.Character.LogName
+                                        + " self-used Item " + Name, c);
+                                }
+                            }
+                        }
                     }
                     else
                     {
                         GameServer.Log(
                             c.Character.LogName + " used item " + Name + " (contained items: " + string.Join(", ", Array.FindAll(ContainedItems, i => i != null).Select(i => i.Name)) + ")", 
                             ServerLog.MessageType.ItemInteraction);
+
+                        if(GameMain.NilMod.EnableGriefWatcher)
+                        {
+                            //Self Usage Check (And Contained)
+                            for (int y = 0; y < NilMod.NilModGriefWatcher.GWListUse.Count; y++)
+                            {
+                                if (NilMod.NilModGriefWatcher.GWListUse[y] == Name
+                                    || Array.FindAll(ContainedItems, i => i != null).Select(i => i.Name).Contains(NilMod.NilModGriefWatcher.GWListUse[y]))
+                                {
+                                    NilMod.NilModGriefWatcher.SendWarning(c.Character.LogName
+                                        + " self-used item " + Name
+                                        + " (" + string.Join(", ", Array.FindAll(ContainedItems, i => i != null).Select(i => i.Name)) + ")", c);
+                                }
+                            }
+                        }
                     }
 
                     GameMain.Server.CreateEntityEvent(this, new object[] { NetEntityEvent.Type.ApplyStatusEffect, ActionType.OnUse, c.Character.ID });
@@ -1643,7 +1715,7 @@ namespace Barotrauma
             if (Description != prefab.Description)
             {
                 msg.Write(Description);
-            }            
+            }
 
             msg.Write(ID);
 
@@ -1722,7 +1794,7 @@ namespace Barotrauma
             {
                 tags = msg.ReadString();
             }
-            
+
             if (!spawn) return null;
 
             //----------------------------------------
@@ -1889,6 +1961,7 @@ namespace Barotrauma
             foreach (XElement subElement in element.Elements())
             {
                 ItemComponent component = unloadedComponents.Find(x => x.Name == subElement.Name.ToString());
+
                 if (component == null) continue;
 
                 component.Load(subElement);

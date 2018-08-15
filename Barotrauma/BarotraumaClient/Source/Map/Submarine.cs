@@ -69,6 +69,29 @@ namespace Barotrauma
             }
         }
 
+        public static void DrawFrontDoorsOnly(SpriteBatch spriteBatch, bool editing = false, Predicate<MapEntity> predicate = null)
+        {
+            var entitiesToRender = !editing && visibleEntities != null ? visibleEntities : MapEntity.mapEntityList;
+
+            foreach (MapEntity e in entitiesToRender)
+            {
+                if (!e.DrawOverWater) continue;
+
+                if (predicate != null)
+                {
+                    if (!predicate(e)) continue;
+                }
+
+                Item it = e as Item;
+                if (it != null
+                    && (it.GetComponent<Barotrauma.Items.Components.Door>() != null
+                    || it.GetComponent<Barotrauma.Items.Components.Ladder>() != null))
+                {
+                    e.Draw(spriteBatch, editing, false);
+                }
+            }
+        }
+
         public static float DamageEffectCutoff;
         public static Color DamageEffectColor;
 
@@ -104,6 +127,29 @@ namespace Barotrauma
                 }
 
                 e.Draw(spriteBatch, editing, true);
+            }
+        }
+
+        public static void DrawBackDoorsOnly(SpriteBatch spriteBatch, bool editing = false, Predicate<MapEntity> predicate = null)
+        {
+            var entitiesToRender = !editing && visibleEntities != null ? visibleEntities : MapEntity.mapEntityList;
+
+            foreach (MapEntity e in entitiesToRender)
+            {
+                if (!e.DrawBelowWater) continue;
+
+                if (predicate != null)
+                {
+                    if (!predicate(e)) continue;
+                }
+
+                Item it = e as Item;
+                if (it != null
+                    && (it.GetComponent<Barotrauma.Items.Components.Door>() != null
+                    || it.GetComponent<Barotrauma.Items.Components.Ladder>() != null))
+                {
+                    e.Draw(spriteBatch, editing, true);
+                }
             }
         }
 
@@ -217,14 +263,14 @@ namespace Barotrauma
                 }
             }
         }
-        
+
         public void ClientRead(ServerNetObject type, NetBuffer msg, float sendingTime)
         {
             var newTargetPosition = new Vector2(
                 msg.ReadFloat(),
                 msg.ReadFloat());
-            
-            //already interpolating with more up-to-date data -> ignore
+
+            //already interpolating with more up-to-date data -> ignore 
             if (subBody.MemPos.Count > 1 && subBody.MemPos[0].Timestamp > sendingTime)
             {
                 return;
@@ -236,13 +282,13 @@ namespace Barotrauma
                 index++;
             }
 
-            //position with the same timestamp already in the buffer (duplicate packet?)
-            //  -> no need to add again
+            //position with the same timestamp already in the buffer (duplicate packet?) 
+            //  -> no need to add again 
             if (index < subBody.MemPos.Count && sendingTime == subBody.MemPos[index].Timestamp)
             {
                 return;
             }
-            
+
             subBody.MemPos.Insert(index, new PosInfo(newTargetPosition, 0.0f, sendingTime));
         }
     }

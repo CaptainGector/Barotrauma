@@ -11,7 +11,7 @@ namespace Barotrauma.Items.Components
         const int SignalQueueSize = 500;
 
         private Queue<Pair<string, float>> signalQueue;
-        
+
         [InGameEditable(MinValueFloat = 0.0f, MaxValueFloat = 60.0f), Serialize(1.0f, true)]
         public float Delay
         {
@@ -26,10 +26,12 @@ namespace Barotrauma.Items.Components
             set;
         }
 
+
         public DelayComponent(Item item, XElement element)
             : base (item, element)
         {
             signalQueue = new Queue<Pair<string, float>>();
+
             IsActive = true;
         }
 

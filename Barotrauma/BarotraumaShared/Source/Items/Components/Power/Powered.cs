@@ -33,7 +33,7 @@ namespace Barotrauma.Items.Components
             get { return powerConsumption; }
             set { powerConsumption = value; }
         }
-        
+
         [Serialize(false, true)]
         public override bool IsActive
         {

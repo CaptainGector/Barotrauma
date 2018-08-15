@@ -29,7 +29,7 @@ namespace Launcher
         private string latestVersionFileList, latestVersionFolder;
 
         private int updateCheckState;
-        
+
         private List<DisplayMode> supportedModes;
 
         private GUIDropDown resolutionDD, contentPackageDD, displayModeDD;
@@ -41,11 +41,6 @@ namespace Launcher
 
         private GUIButton launchButton;
         
-        public bool AutoCheckUpdates
-        {
-            get { return settings.AutoCheckUpdates; }
-            set { settings.AutoCheckUpdates = value; }
-        }
 
         private Texture2D backgroundTexture, titleTexture;
 
@@ -179,13 +174,17 @@ namespace Launcher
             //var fullScreenTick = new GUITickBox(new Rectangle(x,y+150,20,20), "Fullscreen", Alignment.TopLeft, guiRoot);
             //fullScreenTick.OnSelected = ToggleFullScreen;
             //fullScreenTick.Selected = settings.FullScreenEnabled;
+
+            if (settings.AutoCheckUpdates)
+            {
+                CheckForUpdates();
+            }
         }
 
         protected override void Update(GameTime gameTime)
         {
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
-
 
             if (settings.AutoCheckUpdates)
             {
@@ -597,6 +596,7 @@ namespace Launcher
         {
             GUIFrame dummyFrame = new GUIFrame(new Rectangle(0, 0, graphicsWidth, graphicsHeight));
             dummyFrame.Padding = Vector4.Zero;
+
             GUIMessageBox errorBox = new GUIMessageBox(header, message, new string[] { "OK" }, 400, 250, Alignment.Center, dummyFrame);
             errorBox.Buttons[0].OnClicked = errorBox.Close;
             errorBox.InnerFrame.Rect = new Rectangle(

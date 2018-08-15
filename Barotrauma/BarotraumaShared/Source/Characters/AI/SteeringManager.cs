@@ -173,8 +173,8 @@ namespace Barotrauma
                     {
                         avoidSteering = Vector2.Normalize(host.SimPosition - Submarine.LastPickedPosition);
                     }
-                    //failed to normalize (the obstacle to avoid is at the same position as the character?)
-                    // -> move to a random direction
+                    //failed to normalize (the obstacle to avoid is at the same position as the character?) 
+                    // -> move to a random direction 
                     if (!MathUtils.IsValid(avoidSteering)) avoidSteering = Rand.Vector(1.0f);
                 }
 

@@ -15,6 +15,8 @@ namespace Barotrauma
         private int state = 0;
         private int winner = -1;
 
+        private float VictoryTimer = 0f;
+
         private string[] descriptions;
 
         private static string[] teamNames = { "Team A", "Team B" };
@@ -73,7 +75,7 @@ namespace Barotrauma
                     descriptions[i] = descriptions[i].Replace("[location" + (n + 1) + "]", locations[n].Name);
                 }
             }
-            
+
             teamNames = new string[]
             {
                 prefab.ConfigElement.GetAttributeString("teamname1", "Team A"),
@@ -96,6 +98,7 @@ namespace Barotrauma
 
         public override bool AssignTeamIDs(List<Client> clients, out byte hostTeam)
         {
+            /*
             List<Client> randList = new List<Client>(clients);
             for (int i = 0; i < randList.Count; i++)
             {
@@ -129,6 +132,95 @@ namespace Barotrauma
             {
                 hostTeam = 2;
             }
+            */
+
+            List<Client> CoalitionPreference = GameMain.NilMod.RandomizeClientOrder(clients.FindAll(c => c.PreferredTeam == 1 && !c.SpectateOnly));
+            List<Client> RenegadePreference = GameMain.NilMod.RandomizeClientOrder(clients.FindAll(c => c.PreferredTeam == 2 && !c.SpectateOnly));
+            List<Client> RandomPreference = GameMain.NilMod.RandomizeClientOrder(clients.FindAll(c => c.PreferredTeam == 0 && !c.SpectateOnly));
+
+            int hostpreference = GameMain.NilMod.HostTeamPreference;
+            int CoalitionCount = CoalitionPreference.Count();
+            int RenegadeCount = RenegadePreference.Count();
+
+            //if the host didn't set a preference randomize him
+            if (hostpreference == 0)
+            {
+                hostpreference = Rand.Range(1, 2);
+            }
+#if CLIENT
+            //Only count the host in the team counts if he has a character.
+            if (GameMain.NetworkMember.CharacterInfo != null)
+            {
+                if (hostpreference == 1) CoalitionCount += 1;
+                if (hostpreference == 2) RenegadeCount += 1;
+            }
+#endif
+
+
+
+            for (int i = RandomPreference.Count - 1; i >= 0; i--)
+            {
+                if(CoalitionCount > RenegadeCount)
+                {
+                    RenegadePreference.Add(RandomPreference[i]);
+                    RenegadeCount += 1;
+                }
+                else if(RenegadeCount > CoalitionCount)
+                {
+                    CoalitionPreference.Add(RandomPreference[i]);
+                    CoalitionCount += 1;
+                }
+                //Their actually equal so randomise it
+                else
+                {
+                    if(Rand.Range(1, 2) == 1)
+                    {
+                        CoalitionPreference.Add(RandomPreference[i]);
+                        CoalitionCount += 1;
+                    }
+                    else
+                    {
+                        RenegadePreference.Add(RandomPreference[i]);
+                        RenegadeCount += 1;
+                    }
+                }
+            }
+
+            if (GameMain.NilMod.RebalanceTeamPreferences)
+            {
+                //Team Rebalancer
+                if (CoalitionCount > RenegadeCount + 1 && CoalitionPreference.Count > 1)
+                {
+                    for (int x = CoalitionPreference.Count - 1; CoalitionCount > RenegadeCount + 1 && CoalitionPreference.Count > 1; x--)
+                    {
+                        RenegadePreference.Add(CoalitionPreference[x]);
+                        CoalitionPreference.RemoveAt(x);
+                        RenegadeCount += 1;
+                        CoalitionCount -= 1;
+                    }
+                }
+                else if (RenegadeCount > CoalitionCount + 1 && CoalitionPreference.Count > 1)
+                {
+                    for (int x = RenegadePreference.Count - 1; RenegadeCount > CoalitionCount + 1 && RenegadePreference.Count > 1; x--)
+                    {
+                        CoalitionPreference.Add(RenegadePreference[x]);
+                        RenegadePreference.RemoveAt(x);
+                        RenegadeCount += 1;
+                        CoalitionCount -= 1;
+                    }
+                }
+            }
+            //Set the teams
+            foreach(Client c in CoalitionPreference)
+            {
+                c.TeamID = 1;
+            }
+            foreach (Client r in RenegadePreference)
+            {
+                r.TeamID = 2;
+            }
+
+            hostTeam = System.Convert.ToByte(hostpreference);
 
             return true;
         }
@@ -146,7 +238,7 @@ namespace Barotrauma
             subs[1].SetPosition(Level.Loaded.EndPosition - new Vector2(0.0f, 2000.0f));
             subs[1].FlipX();
 
-            //prevent wifi components from communicating between subs
+            //prevent wifi components from communicating between subs 
             List<WifiComponent> wifiComponents = new List<WifiComponent>();
             foreach (Item item in Item.ItemList)
             {
@@ -176,6 +268,7 @@ namespace Barotrauma
         {
             if (!initialized)
             {
+                VictoryTimer = 0f;
                 crews[0].Clear();
                 crews[1].Clear();
                 foreach (Character character in Character.CharacterList)
@@ -209,10 +302,10 @@ namespace Barotrauma
             {
                 for (int i = 0; i < teamDead.Length; i++)
                 {
-                    if (!teamDead[i] && teamDead[1-i])
+                    if (!teamDead[i] && teamDead[1 - i])
                     {
                         //make sure nobody in the other team can be revived because that would be pretty weird
-                        crews[1-i].ForEach(c => { if (!c.IsDead) c.Kill(CauseOfDeath.Damage); });
+                        crews[1 - i].ForEach(c => { if (!c.IsDead) c.Kill(CauseOfDeath.Damage); });
 
                         winner = i;
 
@@ -226,14 +319,23 @@ namespace Barotrauma
             }
             else
             {
+                /*
                 if (winner >= 0 && subs[winner] != null &&
-                    (winner == 0 && subs[winner].AtStartPosition) || (winner == 1 && subs[winner].AtEndPosition) &&
+                    (winner == 0 && (subs[winner].AtStartPosition || subs[winner].AtEndPosition))
+                    || (winner == 1 && subs[winner].AtEndPosition || subs[winner].AtStartPosition) &&
                     crews[winner].Any(c => !c.IsDead && c.Submarine == subs[winner]))
+                    */
+                if (winner >= 0)
                 {
+                    VictoryTimer += deltaTime;
+
+                    if (VictoryTimer >= 3f)
+                    {
 #if CLIENT
-                    GameMain.GameSession.CrewManager.WinningTeam = winner+1;
+                        GameMain.GameSession.CrewManager.WinningTeam = winner + 1;
 #endif
-                    if (GameMain.Server != null) GameMain.Server.EndGame();
+                        if (GameMain.Server != null) GameMain.Server.EndGame();
+                    }
                 }
             }
 

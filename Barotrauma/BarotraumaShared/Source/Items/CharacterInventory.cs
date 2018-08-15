@@ -15,7 +15,7 @@ namespace Barotrauma
 
     partial class CharacterInventory : Inventory
     {
-        private Character character;
+        public Character character;
 
         public static InvSlotType[] limbSlots = new InvSlotType[] { 
             InvSlotType.Head, InvSlotType.Torso, InvSlotType.Legs, InvSlotType.LeftHand, InvSlotType.RightHand, InvSlotType.Face, InvSlotType.Card,
@@ -51,7 +51,7 @@ namespace Barotrauma
 
             Items[slotIndex].ApplyStatusEffects(ActionType.OnUse, 1.0f, character);
 
-            //item may have been removed by a status effect
+            //item may have been removed by a status effect 
             if (Items[slotIndex] == null) return true;
 
             foreach (ItemComponent ic in Items[slotIndex].components)
@@ -61,7 +61,7 @@ namespace Barotrauma
                     Entity.Spawner.AddToRemoveQueue(Items[slotIndex]);
                 }
             }
-            
+
             return true;
         }
         
@@ -147,6 +147,72 @@ namespace Barotrauma
 
                 if (placed)
                 {
+                    if (GameMain.NilMod.EnableGriefWatcher && GameMain.Server != null && user != null && user != character && user.TeamID == character.TeamID)
+                    {
+                        if (GameMain.Server.TraitorManager != null && !GameMain.Server.TraitorManager.IsTraitor(character))
+                        {
+                            Barotrauma.Networking.Client warnedclient = GameMain.Server.ConnectedClients.Find(c => c.Character == user);
+
+                            //Code for mask item checks
+                            if (item.ContainedItems != null
+                                && item.ContainedItems.Count() > 0
+                                && !character.IsDead
+                                && ((GameMain.Server.ConnectedClients.Find(c => c.Character == character) != null)
+                                || character.AIController == null) && user.TeamID == character.TeamID)
+                            {
+                                if (IsInLimbSlot(item, InvSlotType.Face)
+                                    || IsInLimbSlot(item, InvSlotType.Head)
+                                    || IsInLimbSlot(item, InvSlotType.Torso)
+                                    || IsInLimbSlot(item, InvSlotType.Legs))
+                                {
+                                    //Mask item checks
+                                    for (int y = 0; y < NilMod.NilModGriefWatcher.GWListMaskItems.Count; y++)
+                                    {
+                                        if (NilMod.NilModGriefWatcher.GWListMaskItems[y] == item.Name)
+                                        {
+                                            for (int z = 0; z < NilMod.NilModGriefWatcher.GWListMaskHazardous.Count; z++)
+                                            {
+                                                if (Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name).Contains(NilMod.NilModGriefWatcher.GWListMaskHazardous[z]))
+                                                {
+                                                    NilMod.NilModGriefWatcher.SendWarning(user.LogName
+                                                        + " placed lethal wearable " + item.Name
+                                                        + " (" + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")"
+                                                        + " on " + character.LogName, warnedclient);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (!character.IsDead
+                                && ((GameMain.Server.ConnectedClients.Find(c => c.Character == character) != null)
+                                || character.AIController == null) && user.TeamID == character.TeamID)
+                            {
+                                //Incase a mod decides to have straightjackets or something
+                                if (IsInLimbSlot(item, InvSlotType.RightHand)
+                                    || IsInLimbSlot(item, InvSlotType.LeftHand)
+                                    || IsInLimbSlot(item, InvSlotType.Face)
+                                    || IsInLimbSlot(item, InvSlotType.Head)
+                                    || IsInLimbSlot(item, InvSlotType.Torso)
+                                    || IsInLimbSlot(item, InvSlotType.Legs))
+                                {
+                                    //Handcuff checks
+                                    for (int y = 0; y < NilMod.NilModGriefWatcher.GWListHandcuffs.Count; y++)
+                                    {
+                                        if (NilMod.NilModGriefWatcher.GWListHandcuffs[y] == item.Name)
+                                        {
+                                            NilMod.NilModGriefWatcher.SendWarning(user.LogName
+                                                + " placed " + item.Name
+                                                + " on " + character.LogName, warnedclient);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+
                     return true;
                 }
             }
@@ -179,14 +245,14 @@ namespace Barotrauma
                 else if (item.ParentInventory == this && allowSwapping)
                 {
                     int currentIndex = Array.IndexOf(Items, item);
-                    
+
                     Item existingItem = Items[index];
 
                     for (int i = 0; i < capacity; i++)
                     {
                         if (Items[i] == item || Items[i] == existingItem) Items[i] = null;
                     }
-                    
+
                     //if the item in the slot can be moved to the slot of the moved item
                     if (TryPutItem(existingItem, currentIndex, false, false, user, createNetworkEvent) &&
                         TryPutItem(item, index, false, false, user, createNetworkEvent))

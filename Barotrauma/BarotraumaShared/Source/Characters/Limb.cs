@@ -50,7 +50,7 @@ namespace Barotrauma
         
         //the physics body of the limb
         public PhysicsBody body;
-
+        
         protected readonly Vector2 stepOffset;
         
         public Sprite sprite, damagedSprite;
@@ -62,7 +62,7 @@ namespace Barotrauma
         public readonly LimbType type;
 
         public readonly bool ignoreCollisions;
-        
+
         private bool isSevered;
         private float severedFadeOutTimer;
                 
@@ -87,7 +87,7 @@ namespace Barotrauma
                 isSevered = value;
 #if CLIENT
                 if (isSevered) damage = 100.0f;
-#endif                
+#endif
             }
         }
 
@@ -144,7 +144,7 @@ namespace Barotrauma
         {
             get { return stepOffset; }
         }
-        
+
         public List<WearableSprite> WearingItems { get; private set; }
 
         public Limb (Character character, XElement element, float scale = 1.0f)
@@ -152,7 +152,7 @@ namespace Barotrauma
             this.character = character;
 
             WearingItems = new List<WearableSprite>();
-            
+
             dir = Direction.Right;
             DoesFlip = element.GetAttributeBool("flip", false);
 
@@ -214,7 +214,7 @@ namespace Barotrauma
             GameMain.World.AddJoint(pullJoint);
 
             SteerForce = element.GetAttributeFloat("steerforce", 0.0f);
-            
+
             if (element.Attribute("mouthpos") != null)
             {
                 MouthPos = ConvertUnits.ToSimUnits(element.GetAttributeVector2("mouthpos", Vector2.Zero));
@@ -310,7 +310,7 @@ namespace Barotrauma
                     appliedDamageModifiers.Add(damageModifier);
                 }
             }
-            
+
             foreach (WearableSprite wearable in WearingItems)
             {
                 foreach (DamageModifier damageModifier in wearable.WearableComponent.DamageModifiers)
@@ -322,12 +322,50 @@ namespace Barotrauma
                     }
                 }
             }
+            float originalamount = amount;
+            float originalbleed = bleedingAmount;
 
             foreach (DamageModifier damageModifier in appliedDamageModifiers)
             {
-                amount *= damageModifier.DamageMultiplier;
-                bleedingAmount *= damageModifier.BleedingMultiplier;
+                amount = CalculateNewHealth(amount, originalamount, damageModifier.DamageMultiplier);
+                bleedingAmount = CalculateNewBleed(bleedingAmount, originalbleed, damageModifier.BleedingMultiplier);
             }
+
+            /*
+            if (hitArmor)
+            {
+                totalArmorValue = Math.Max(totalArmorValue, 0.0f);
+
+                amount = Math.Max(0.0f, amount - totalArmorValue);
+                bleedingAmount = Math.Max(0.0f, bleedingAmount - totalArmorValue);
+            }
+            */
+
+            //NilMod Armour Rebalance
+            /*
+            if (hitArmor)
+            {
+                totalArmorValue = Math.Max(totalArmorValue, 0.0f);
+
+                //Health Damage Mechanics
+                amount = CalculateHealthArmor(amount, totalArmorValue);
+
+                //Armour Bleeding Mechanics
+                if ((amount == 0.0f && GameMain.NilMod.ArmourBleedBypassNoDamage) | amount > 0.0f)
+                {
+                    bleedingAmount = CalculateBleedArmor(bleedingAmount, totalArmorValue);
+                }
+                else
+                {
+                    //No Damage and not allowed to cause bleed without damage.
+                    bleedingAmount = 0.0f;
+                }
+
+                //Don't allow negative values
+                amount = Math.Max(0.0f, amount);
+                bleedingAmount = Math.Max(0.0f, bleedingAmount);
+            }
+            */
 
             AddDamageProjSpecific(position, damageType, amount, bleedingAmount, playSound, appliedDamageModifiers);
 
@@ -382,7 +420,7 @@ namespace Barotrauma
         }
 
         partial void UpdateProjSpecific(float deltaTime);
-                
+
         public void UpdateAttack(float deltaTime, Vector2 attackPosition, IDamageable damageTarget)
         {
             float dist = ConvertUnits.ToDisplayUnits(Vector2.Distance(SimPosition, attackPosition));
@@ -509,5 +547,100 @@ namespace Barotrauma
             }
 #endif
         }
+
+        public static float CalculateNewHealth(float health, float originalhealth, float damageModifier)
+        {
+            float Armour = (1f - damageModifier) * 100f;
+            float amount = health;
+            //Calculate health reduction
+            amount = Math.Max(originalhealth * (GameMain.NilMod.ArmourMinimumHealthPercent / 100f), amount - (Armour * GameMain.NilMod.ArmourDirectReductionHealth));
+
+            //Calculate health absorption after flat reduction - and prevent it turning to 0 if armourabsorption is nothing.
+            if (GameMain.NilMod.ArmourAbsorptionHealth > 0f)
+            {
+                amount = Math.Max(originalhealth * (GameMain.NilMod.ArmourMinimumHealthPercent / 100f), amount - (amount * (Armour * GameMain.NilMod.ArmourAbsorptionHealth / 100f)));
+            }
+
+            if (GameMain.NilMod.ArmourResistancePowerHealth > 0f && GameMain.NilMod.ArmourResistancePowerHealth > 0f)
+            {
+                amount = Math.Max(originalhealth * (GameMain.NilMod.ArmourMinimumHealthPercent / 100f), amount - (amount * (1 - Convert.ToSingle(Math.Pow(Convert.ToDouble(GameMain.NilMod.ArmourResistancePowerHealth), Convert.ToDouble(Armour / GameMain.NilMod.ArmourResistanceMultiplierHealth))))));
+            }
+
+            if (amount <= 0.0001f) amount = 0f;
+
+            return amount;
+        }
+
+        public static float CalculateNewBleed(float bleed, float originalbleed, float damageModifier)
+        {
+            float Armour = (1f - damageModifier) * 100f;
+            float bleedingAmount = bleed;
+
+            //Calculate bleed reduction
+            bleedingAmount = Math.Max(originalbleed * (GameMain.NilMod.ArmourMinimumBleedPercent / 100f), bleedingAmount - (Armour * GameMain.NilMod.ArmourDirectReductionBleed));
+
+            //Calculate bleed absorption after flat reduction - and prevent it turning to 0 if armourabsorption is nothing.
+            if (GameMain.NilMod.ArmourAbsorptionBleed != 0f)
+            {
+                bleedingAmount = Math.Max(originalbleed * (GameMain.NilMod.ArmourMinimumBleedPercent / 100f), bleedingAmount - (bleedingAmount * (Armour * GameMain.NilMod.ArmourAbsorptionBleed / 100f)));
+            }
+
+            if (GameMain.NilMod.ArmourResistancePowerBleed != 0f && GameMain.NilMod.ArmourResistanceMultiplierBleed != 0f)
+            {
+                bleedingAmount = Math.Max(originalbleed * (GameMain.NilMod.ArmourMinimumBleedPercent / 100f), bleedingAmount - (bleedingAmount * (1 - Convert.ToSingle(Math.Pow(Convert.ToDouble(GameMain.NilMod.ArmourResistancePowerBleed), Convert.ToDouble(Armour / GameMain.NilMod.ArmourResistanceMultiplierBleed))))));
+            }
+
+            if (bleedingAmount <= 0.0001f) bleedingAmount = 0f;
+
+            return bleedingAmount;
+        }
+
+        /*
+
+        public static float CalculateHealthArmor(float health, float totalArmorValue)
+        {
+            float amount = health;
+            //Calculate health reduction
+            amount = Math.Max(health * (GameMain.NilMod.ArmourMinimumHealthPercent / 100f), amount - (totalArmorValue * GameMain.NilMod.ArmourDirectReductionHealth));
+
+            //Calculate health absorption after flat reduction - and prevent it turning to 0 if armourabsorption is nothing.
+            if (GameMain.NilMod.ArmourAbsorptionHealth > 0f)
+            {
+                amount = Math.Max(health * (GameMain.NilMod.ArmourMinimumHealthPercent / 100f), amount - (amount * (totalArmorValue * GameMain.NilMod.ArmourAbsorptionHealth)));
+            }
+
+            if (GameMain.NilMod.ArmourResistancePowerHealth > 0f && GameMain.NilMod.ArmourResistancePowerHealth > 0f)
+            {
+                amount = Math.Max(health * (GameMain.NilMod.ArmourMinimumHealthPercent / 100f), amount - (amount * (1 - Convert.ToSingle(Math.Pow(Convert.ToDouble(GameMain.NilMod.ArmourResistancePowerHealth), Convert.ToDouble(totalArmorValue / GameMain.NilMod.ArmourResistanceMultiplierHealth))))));
+            }
+
+            if (amount <= 0.0001f) amount = 0f;
+
+            return amount;
+        }
+
+        public static float CalculateBleedArmor(float bleed, float totalArmorValue)
+        {
+            float bleedingAmount = bleed;
+
+            //Calculate bleed reduction
+            bleedingAmount = Math.Max(bleed * (GameMain.NilMod.ArmourMinimumBleedPercent / 100f), bleedingAmount - (totalArmorValue * GameMain.NilMod.ArmourDirectReductionBleed));
+
+            //Calculate bleed absorption after flat reduction - and prevent it turning to 0 if armourabsorption is nothing.
+            if (GameMain.NilMod.ArmourAbsorptionBleed > 0f)
+            {
+                bleedingAmount = Math.Max(bleed * (GameMain.NilMod.ArmourMinimumBleedPercent / 100f), bleedingAmount - (bleedingAmount * (totalArmorValue * GameMain.NilMod.ArmourAbsorptionBleed)));
+            }
+
+            if (GameMain.NilMod.ArmourResistancePowerBleed > 0f && GameMain.NilMod.ArmourResistanceMultiplierBleed > 0f)
+            {
+                bleedingAmount = Math.Max(bleed * (GameMain.NilMod.ArmourMinimumBleedPercent / 100f), bleedingAmount - (bleedingAmount * (1 - Convert.ToSingle(Math.Pow(Convert.ToDouble(GameMain.NilMod.ArmourResistancePowerBleed), Convert.ToDouble(totalArmorValue / GameMain.NilMod.ArmourResistanceMultiplierBleed))))));
+            }
+
+            if (bleedingAmount <= 0.0001f) bleedingAmount = 0f;
+
+            return bleedingAmount;
+        }
+        */
     }
 }

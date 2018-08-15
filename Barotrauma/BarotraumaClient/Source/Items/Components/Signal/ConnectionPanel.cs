@@ -34,8 +34,8 @@ namespace Barotrauma.Items.Components
         {
             if (GameMain.Client.MidRoundSyncing)
             {
-                //delay reading the state until midround syncing is done
-                //because some of the wires connected to the panel may not exist yet
+                //delay reading the state until midround syncing is done 
+                //because some of the wires connected to the panel may not exist yet 
                 int bitsToRead = Connections.Count * Connection.MaxLinked * 16;
                 StartDelayedCorrection(type, msg.ExtractBits(bitsToRead), sendingTime, waitForMidRoundSync: true);
             }
@@ -80,8 +80,8 @@ namespace Barotrauma.Items.Components
                 {
                     wire.Item.Drop(null);
                 }
-                //wires that are not in anyone's inventory (i.e. not currently being rewired) can never be connected to only one connection
-                // -> someone must have dropped the wire from the connection panel
+                //wires that are not in anyone's inventory (i.e. not currently being rewired) can never be connected to only one connection 
+                // -> someone must have dropped the wire from the connection panel 
                 else if (wire.Item.ParentInventory == null &&
                     (wire.Connections[0] != null ^ wire.Connections[1] != null))
                 {

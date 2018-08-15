@@ -13,6 +13,8 @@ namespace Barotrauma
 {
     partial class Item : MapEntity, IDamageable, ISerializableEntity, IServerSerializable, IClientSerializable
     {
+        private Boolean PositionError = false;
+
         public override Sprite Sprite
         {
             get { return prefab.GetActiveSprite(condition); }
@@ -38,8 +40,8 @@ namespace Barotrauma
         public override void Draw(SpriteBatch spriteBatch, bool editing, bool back = true)
         {
             if (!Visible) return;
-            
             Color color = (IsSelected && editing) ? Color.Red : GetSpriteColor();
+
             if (isHighlighted) color = Color.Orange;
 
             Sprite activeSprite = prefab.sprite;
@@ -402,7 +404,7 @@ namespace Barotrauma
                     ushort targetID = msg.ReadUInt16();
 
                     Character target = FindEntityByID(targetID) as Character;
-                    //ignore deltatime - using an item with the useOnSelf buttons is instantaneous
+                    //ignore deltatime - using an item with the useOnSelf buttons is instantaneous 
                     ApplyStatusEffects(actionType, 1.0f, target, true);
                     break;
                 case NetEntityEvent.Type.ChangeProperty:
@@ -458,7 +460,7 @@ namespace Barotrauma
             float newRotation = msg.ReadRangedSingle(0.0f, MathHelper.TwoPi, 7);
             bool awake = msg.ReadBoolean();
             Vector2 newVelocity = Vector2.Zero;
-            
+
             if (awake)
             {
                 newVelocity = new Vector2(
@@ -471,7 +473,7 @@ namespace Barotrauma
                 string errorMsg = "Received invalid position data for the item \"" + Name
                     + "\" (position: " + newPosition + ", rotation: " + newRotation + ", velocity: " + newVelocity + ")";
 #if DEBUG
-                DebugConsole.ThrowError(errorMsg);
+                DebugConsole.ThrowError(errorMsg); 
 #endif
                 GameAnalyticsManager.AddErrorEventOnce("Item.ClientReadPosition:InvalidData" + ID,
                     GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
@@ -481,7 +483,15 @@ namespace Barotrauma
 
             if (body == null)
             {
-                DebugConsole.ThrowError("Received a position update for an item with no physics body (" + Name + ")");
+                if(PositionError)
+                {
+                    DebugConsole.NewMessage(@"Received a position update for an item with no physics body """ + Name + @"""" + " (Server Item Position: X" + newPosition.X + " Y" + newPosition.Y + " - Client Item Position: X" + Position.X + " Y" + Position.Y, Color.Red);
+                }
+                else
+                {
+                    DebugConsole.ThrowError(@"Received a position update for an item with no physics body """ + Name + @"""" + " (Server Item Position: X" + newPosition.X + " Y" + newPosition.Y + " - Client Item Position: X" + Position.X + " Y" + Position.Y);
+                    PositionError = true;
+                }
                 return;
             }
 

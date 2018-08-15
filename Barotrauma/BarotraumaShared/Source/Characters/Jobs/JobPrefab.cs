@@ -12,6 +12,8 @@ namespace Barotrauma
 
         public List<SkillPrefab> Skills;
 
+        public int Totalskill;
+
         //the number of these characters in the crew the player starts with
         public readonly int InitialCount;
 
@@ -50,6 +52,13 @@ namespace Barotrauma
             private set;
         }
 
+        //NilMod ReqNumber
+        public int ReqNumber
+        {
+            get;
+            private set;
+        }
+
         public float MinKarma
         {
             get;
@@ -71,6 +80,9 @@ namespace Barotrauma
             MinNumber = element.GetAttributeInt("minnumber", 0);
             MaxNumber = element.GetAttributeInt("maxnumber", 10);
             MinKarma = element.GetAttributeFloat("minkarma", 0.0f);
+
+            //NilMod Required players for job code
+            ReqNumber = element.GetAttributeInt("reqnumber", 0);
 
             InitialCount = element.GetAttributeInt("initialcount", 0);
 
@@ -98,7 +110,39 @@ namespace Barotrauma
                         foreach (XElement skillElement in subElement.Elements())
                         {
                             Skills.Add(new SkillPrefab(skillElement));
-                        } 
+                        }
+                        Totalskill = 1;
+                        foreach (SkillPrefab sp in Skills)
+                        {
+                            float weight = 1.0f;
+                            switch (sp.Name)
+                            {
+                                case "Construction":
+                                    weight = 1.35f;
+                                    break;
+                                case "Electrical Engineering":
+                                    weight = 1.15f;
+                                    break;
+                                case "Medical":
+                                    weight = 1.15f;
+                                    break;
+                                case "Science":
+                                    weight = 0.9f;
+                                    break;
+                                case "Cooking":
+                                    weight = 0.8f;
+                                    break;
+                                case "Weapons":
+                                    weight = 0.7f;
+                                    break;
+                                default:
+                                    weight = 1.0f;
+                                    break;
+                            }
+
+                            //Add the skills average level to total skill after loading
+                            Totalskill += System.Convert.ToInt16(System.Math.Max(System.Math.Round((((sp.LevelRange.X + sp.LevelRange.Y - 35) / 2) * weight),0),0));
+                        }
                         break;
                 }
             }

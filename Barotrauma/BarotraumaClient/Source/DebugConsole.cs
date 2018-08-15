@@ -204,7 +204,7 @@ namespace Barotrauma
 
         private static void InitProjectSpecific()
         {
-            commands.Add(new Command("autohull", "", (string[] args) =>
+            commands.Add(new Command("autohull",CommandType.Generic, "", (string[] args) =>
             {
                 if (Screen.Selected != GameMain.SubEditorScreen) return;
 
@@ -221,7 +221,7 @@ namespace Barotrauma
                 }
             }));
 
-            commands.Add(new Command("startclient", "", (string[] args) =>
+            commands.Add(new Command("startclient", CommandType.Generic, "", (string[] args) =>
             {
                 if (args.Length == 0) return;
 
@@ -232,7 +232,7 @@ namespace Barotrauma
                 }
             }));
 
-            commands.Add(new Command("mainmenuscreen|mainmenu|menu", "mainmenu/menu: Go to the main menu.", (string[] args) =>
+            commands.Add(new Command("mainmenuscreen|mainmenu|menu", CommandType.Generic, "mainmenu/menu: Go to the main menu.", (string[] args) =>
             {
                 GameMain.GameSession = null;
 
@@ -245,12 +245,12 @@ namespace Barotrauma
                 GameMain.MainMenuScreen.Select();
             }));
 
-            commands.Add(new Command("gamescreen|game", "gamescreen/game: Go to the \"in-game\" view.", (string[] args) =>
+            commands.Add(new Command("gamescreen|game", CommandType.Generic, "gamescreen/game: Go to the \"in-game\" view.", (string[] args) =>
             {
                 GameMain.GameScreen.Select();
             }));
 
-            commands.Add(new Command("editsubscreen|editsub|subeditor", "editsub/subeditor: Switch to the submarine editor.", (string[] args) =>
+            commands.Add(new Command("editsubscreen|editsub|subeditor", CommandType.Generic, "editsub/subeditor: Switch to the submarine editor.", (string[] args) =>
             {
                 if (args.Length > 0)
                 {
@@ -259,7 +259,7 @@ namespace Barotrauma
                 GameMain.SubEditorScreen.Select();
             }));
 
-            commands.Add(new Command("editcharacter", "", (string[] args) =>
+            commands.Add(new Command("editcharacter", CommandType.Debug, "", (string[] args) =>
             {
                 GameMain.CharacterEditorScreen.Select();
             }));
@@ -269,8 +269,7 @@ namespace Barotrauma
                 GameMain.ParticleEditorScreen.Select();
             }));
 
-
-            commands.Add(new Command("control|controlcharacter", "control [character name]: Start controlling the specified character.", (string[] args) =>
+            commands.Add(new Command("control|controlcharacter", CommandType.Character, "control [character name]: Start controlling the specified character.", (string[] args) =>
             {
                 if (args.Length < 1) return;
 
@@ -289,34 +288,34 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("shake", "", (string[] args) =>
+            commands.Add(new Command("shake", CommandType.Debug, "", (string[] args) =>
             {
                 GameMain.GameScreen.Cam.Shake = 10.0f;
             }));
 
-            commands.Add(new Command("los", "los: Toggle the line of sight effect on/off.", (string[] args) =>
+            commands.Add(new Command("los", CommandType.Render, "los: Toggle the line of sight effect on/off.", (string[] args) =>
             {
                 GameMain.LightManager.LosEnabled = !GameMain.LightManager.LosEnabled;
                 NewMessage("Line of sight effect " + (GameMain.LightManager.LosEnabled ? "enabled" : "disabled"), Color.White);
             }));
 
-            commands.Add(new Command("lighting|lights", "Toggle lighting on/off.", (string[] args) =>
+            commands.Add(new Command("lighting|lights", CommandType.Render, "Toggle lighting on/off.", (string[] args) =>
             {
                 GameMain.LightManager.LightingEnabled = !GameMain.LightManager.LightingEnabled;
                 NewMessage("Lighting " + (GameMain.LightManager.LightingEnabled ? "enabled" : "disabled"), Color.White);
             }));
 
-            commands.Add(new Command("tutorial", "", (string[] args) =>
+            commands.Add(new Command("tutorial", CommandType.Generic, "", (string[] args) =>
             {
                 TutorialMode.StartTutorial(Tutorials.TutorialType.TutorialTypes[0]);
             }));
 
-            commands.Add(new Command("lobby|lobbyscreen", "", (string[] args) =>
+            commands.Add(new Command("lobby|lobbyscreen", CommandType.Generic, "", (string[] args) =>
             {
                 GameMain.LobbyScreen.Select();
             }));
 
-            commands.Add(new Command("save|savesub", "save [submarine name]: Save the currently loaded submarine using the specified name.", (string[] args) =>
+            commands.Add(new Command("save|savesub", CommandType.Generic, "save [submarine name]: Save the currently loaded submarine using the specified name.", (string[] args) =>
             {
                 if (args.Length < 1) return;
 
@@ -338,13 +337,13 @@ namespace Barotrauma
                 }
             }));
 
-            commands.Add(new Command("load|loadsub", "load [submarine name]: Load a submarine.", (string[] args) =>
+            commands.Add(new Command("load|loadsub", CommandType.Generic, "load [submarine name]: Load a submarine.", (string[] args) =>
             {
                 if (args.Length == 0) return;
                 Submarine.Load(string.Join(" ", args), true);
             }));
 
-            commands.Add(new Command("cleansub", "", (string[] args) =>
+            commands.Add(new Command("cleansub", CommandType.Generic, "", (string[] args) =>
             {
                 for (int i = MapEntity.mapEntityList.Count - 1; i >= 0; i--)
                 {
@@ -375,38 +374,175 @@ namespace Barotrauma
                 }
             }));
 
-            commands.Add(new Command("messagebox", "", (string[] args) =>
-            {
-                new GUIMessageBox("", string.Join(" ", args));
-            }));
-
-            commands.Add(new Command("debugdraw", "debugdraw: Toggle the debug drawing mode on/off.", (string[] args) =>
+            commands.Add(new Command("debugdraw", CommandType.Render, "debugdraw: Toggle the debug drawing mode on/off.", (string[] args) =>
             {
                 GameMain.DebugDraw = !GameMain.DebugDraw;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (GameMain.DebugDraw)
+                    {
+                        GameMain.Server.ToggleDebugDrawButton.Text = "DebugDraw: Off";
+                        GameMain.Server.ToggleDebugDrawButton.ToolTip = "Turns off debugdraw view information.";
+                    }
+                    else
+                    {
+                        GameMain.Server.ToggleDebugDrawButton.Text = "DebugDraw: On";
+                        GameMain.Server.ToggleDebugDrawButton.ToolTip = "Turns on debugdraw view information.";
+                    }
+                }
+#endif
                 NewMessage("Debug draw mode " + (GameMain.DebugDraw ? "enabled" : "disabled"), Color.White);
 
             }));
 
-            commands.Add(new Command("togglehud|hud", "togglehud/hud: Toggle the character HUD (inventories, icons, buttons, etc) on/off.", (string[] args) =>
+            commands.Add(new Command("togglehud|hud", CommandType.Render, "togglehud/hud: Toggle the character HUD (inventories, icons, buttons, etc) on/off.", (string[] args) =>
             {
                 GUI.DisableHUD = !GUI.DisableHUD;
                 GameMain.Instance.IsMouseVisible = !GameMain.Instance.IsMouseVisible;
+
                 NewMessage(GUI.DisableHUD ? "Disabled HUD" : "Enabled HUD", Color.White);
             }));
 
-            commands.Add(new Command("followsub", "followsub: Toggle whether the camera should follow the nearest submarine.", (string[] args) =>
+            //Nilmod Disable/Enable rendering - other command
+            commands.Add(new Command("togglerenderother|renderother", CommandType.Render, "togglerenderother/renderother: toggles the rendering of particles, lights, los and such.", (string[] args) =>
+            {
+                GameMain.NilMod.RenderOther = !GameMain.NilMod.RenderOther;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (GameMain.NilMod.RenderOther)
+                    {
+                        GameMain.Server.ToggleRenderOtherButton.Text = "RenderOther: Off";
+                        GameMain.Server.ToggleRenderOtherButton.ToolTip = "Turns off particle, lighting, los and other miscellanous rendering.";
+                    }
+                    else
+                    {
+                        GameMain.Server.ToggleRenderOtherButton.Text = "RenderOther: On";
+                        GameMain.Server.ToggleRenderOtherButton.ToolTip = "Turns on particle, lighting, los and other miscellanous rendering.";
+                    }
+                }
+#endif
+                NewMessage(GameMain.NilMod.RenderOther ? "Enabled rendering:Other" : "Disabled rendering:Other", Color.White);
+            }));
+
+            //Nilmod Disable/Enable rendering - level command
+            commands.Add(new Command("togglerenderlevel|renderlevel", CommandType.Render, "togglerenderlevel/renderlevel: Specifically toggles rendering for the level", (string[] args) =>
+            {
+                GameMain.NilMod.RenderLevel = !GameMain.NilMod.RenderLevel;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (GameMain.NilMod.RenderLevel)
+                    {
+                        GameMain.Server.ToggleRenderLevelButton.Text = "RenderLevel: Off";
+                        GameMain.Server.ToggleRenderLevelButton.ToolTip = "Turns off level rendering, structure rendering will still render the submarine walls unless both are off.";
+                    }
+                    else
+                    {
+                        GameMain.Server.ToggleRenderLevelButton.Text = "RenderLevel: On";
+                        GameMain.Server.ToggleRenderLevelButton.ToolTip = "Turns on level rendering.";
+                    }
+                }
+#endif
+                NewMessage(GameMain.NilMod.RenderLevel ? "Enabled rendering:Level" : "Disabled rendering:Level", Color.White);
+            }));
+
+            //Nilmod Disable/Enable rendering - character command
+            commands.Add(new Command("togglerendercharacters|togglerendercharacter|rendercharacters|rendercharacter", CommandType.Render, "togglerendercharacter/rendercharacter: Specifically toggles rendering for the level", (string[] args) =>
+            {
+                GameMain.NilMod.RenderCharacter = !GameMain.NilMod.RenderCharacter;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (GameMain.NilMod.RenderCharacter)
+                    {
+                        GameMain.Server.ToggleRenderCharacterButton.Text = "RenderChar: Off";
+                        GameMain.Server.ToggleRenderCharacterButton.ToolTip = "Turns off character rendering.";
+                    }
+                    else
+                    {
+                        GameMain.Server.ToggleRenderCharacterButton.Text = "RenderChar: On";
+                        GameMain.Server.ToggleRenderCharacterButton.ToolTip = "Turns on character rendering.";
+                    }
+                }
+#endif
+                NewMessage(GameMain.NilMod.RenderCharacter ? "Enabled rendering:Character" : "Disabled rendering:Character", Color.White);
+            }));
+
+            //Nilmod Disable/Enable rendering - structure command
+            commands.Add(new Command("togglerenderstructures|togglerenderstructure|renderstructures|renderstructure", CommandType.Render, "togglerenderstructure/renderstructure: Specifically toggles rendering for the submarine structures", (string[] args) =>
+            {
+                GameMain.NilMod.RenderStructure = !GameMain.NilMod.RenderStructure;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (GameMain.NilMod.RenderStructure)
+                    {
+                        GameMain.Server.ToggleRenderStructureButton.Text = "RenderStruct: Off";
+                        GameMain.Server.ToggleRenderStructureButton.ToolTip = "Turns off rendering of submarine items and background walls, level will still show outer walls, doors, ladders and perhaps stairs..";
+                    }
+                    else
+                    {
+                        GameMain.Server.ToggleRenderStructureButton.Text = "RenderStruct: On";
+                        GameMain.Server.ToggleRenderStructureButton.ToolTip = "Turns on rendering of all submarine items and background walls.";
+                    }
+                }
+#endif
+                NewMessage(GameMain.NilMod.RenderStructure ? "Enabled rendering:Structure" : "Disabled rendering:Structure", Color.White);
+            }));
+
+            //Nilmod Disable/Enable particles command
+            commands.Add(new Command("toggleparticles|particles", CommandType.Render, "toggleparticles/particles: Toggle the Particle System on/off.", (string[] args) =>
+            {
+                GameMain.NilMod.DisableParticles = !GameMain.NilMod.DisableParticles;
+
+                NewMessage("Particle System " + (GameMain.NilMod.DisableParticles ? "disabled" : "enabled"), Color.White);
+            }));
+
+            commands.Add(new Command("followsub", CommandType.Render, "followsub: Toggle whether the camera should follow the nearest submarine.", (string[] args) =>
             {
                 Camera.FollowSub = !Camera.FollowSub;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (Camera.FollowSub)
+                    {
+                        GameMain.Server.ToggleFollowSubButton.Text = "FollowSub: Off";
+                        GameMain.Server.ToggleFollowSubButton.ToolTip = "Stops the camera automatically following submarines.";
+                    }
+                    else
+                    {
+                        GameMain.Server.ToggleFollowSubButton.Text = "FollowSub: On";
+                        GameMain.Server.ToggleFollowSubButton.ToolTip = "Attaches the camera automatically to begin following submarines again.";
+                    }
+                }
+#endif
                 NewMessage(Camera.FollowSub ? "Set the camera to follow the closest submarine" : "Disabled submarine following.", Color.White);
             }));
 
-            commands.Add(new Command("toggleaitargets|aitargets", "toggleaitargets/aitargets: Toggle the visibility of AI targets (= targets that enemies can detect and attack/escape from).", (string[] args) =>
+            commands.Add(new Command("toggleaitargets|aitargets", CommandType.Debug, "toggleaitargets/aitargets: Toggle the visibility of AI targets (= targets that enemies can detect and attack/escape from).", (string[] args) =>
             {
                 AITarget.ShowAITargets = !AITarget.ShowAITargets;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (AITarget.ShowAITargets)
+                    {
+                        GameMain.Server.ToggleAITargetsButton.Text = "AITargets: Off";
+                        GameMain.Server.ToggleAITargetsButton.ToolTip = "Turns off AI Targetting range information for Debugdraw mode.";
+                    }
+                    else
+                    {
+                        GameMain.Server.ToggleAITargetsButton.Text = "AITargets: On";
+                        GameMain.Server.ToggleAITargetsButton.ToolTip = "Turns on AI Targetting range information for Debugdraw mode.";
+                    }
+                }
+#endif
                 NewMessage(AITarget.ShowAITargets ? "Enabled AI target drawing" : "Disabled AI target drawing", Color.White);
             }));
 #if DEBUG
-            commands.Add(new Command("spamchatmessages", "", (string[] args) =>
+            commands.Add(new Command("spamchatmessages", CommandType.Debug, "", (string[] args) =>
             {
                 int msgCount = 1000;
                 if (args.Length > 0) int.TryParse(args[0], out msgCount);
@@ -426,7 +562,7 @@ namespace Barotrauma
                 }
             }));
 #endif
-            commands.Add(new Command("cleanbuild", "", (string[] args) =>
+            commands.Add(new Command("cleanbuild", CommandType.Generic, "", (string[] args) =>
             {
                 GameMain.Config.MusicVolume = 0.5f;
                 GameMain.Config.SoundVolume = 0.5f;
@@ -499,9 +635,9 @@ namespace Barotrauma
                     NewMessage("Deleted server settings", Color.Green);
                 }
 
-                if (System.IO.File.Exists(GameServer.ClientPermissionsFile))
+                if (System.IO.File.Exists(GameServer.VanillaClientPermissionsFile))
                 {
-                    System.IO.File.Delete(GameServer.ClientPermissionsFile);
+                    System.IO.File.Delete(GameServer.VanillaClientPermissionsFile);
                     NewMessage("Deleted client permission file", Color.Green);
                 }
 
@@ -515,6 +651,86 @@ namespace Barotrauma
                 {
                     ThrowError("TutorialSub.sub not found!");
                 }
+            }));
+
+            //Nilmod Spy command
+            commands.Add(new Command("spy|spycharacter", CommandType.Character, "spy: View the game from another characters HUD and location.", (string[] args) =>
+            {
+                if (args.Length < 1) return;
+
+                var character = FindMatchingCharacter(args, false);
+
+                if (character != null)
+                {
+                    Character.Spied = character;
+                }
+            },
+            () =>
+            {
+                return new string[][]
+                {
+                    Character.CharacterList.Select(c => c.Name).Distinct().ToArray()
+                };
+            }));
+
+            commands.Add(new Command("spyid|spyclientid", CommandType.Character, "spy: View the game from another characters HUD and location.", (string[] args) =>
+            {
+                if (GameMain.NetworkMember == null || args.Length < 1) return;
+
+                int id = 0;
+                int.TryParse(args[0], out id);
+                var client = GameMain.NetworkMember.ConnectedClients.Find(c => c.ID == id);
+                if (client == null)
+                {
+                    DebugConsole.NewMessage("Client id \"" + id + "\" not found.", Color.Red);
+                    return;
+                }
+
+                var character = client.Character;
+
+                if (character != null)
+                {
+                    Character.Spied = character;
+                }
+                else
+                {
+                    DebugConsole.NewMessage("Client " + client.Name + " Does not currently have a character to spy.", Color.Red);
+                }
+            }));
+
+            commands.Add(new Command("toggledeathchat|toggledeath|deathchat", CommandType.Network, "toggledeathchat: Toggle the visibility of death chat for a living host.", (string[] args) =>
+            {
+                GameMain.NilMod.ShowDeadChat = !GameMain.NilMod.ShowDeadChat;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (GameMain.NilMod.ShowDeadChat)
+                    {
+                        GameMain.Server.ToggleDeathChat.Text = "DeathChat: Off";
+                        GameMain.Server.ToggleDeathChat.ToolTip = "Turns off visibility of the deathchat if you have a living character.";
+                    }
+                    else
+                    {
+                        GameMain.Server.ToggleDeathChat.Text = "DeathChat: On";
+                        GameMain.Server.ToggleDeathChat.ToolTip = "Turns on visibility of the deathchat if you have a living character";
+                    }
+                }
+#endif
+                NewMessage("Death chat visibility " + (GameMain.NilMod.ShowDeadChat ? "enabled" : "disabled"), Color.White);
+
+            }));
+
+            //Nilmod playercount command
+            commands.Add(new Command("playercount|countplayers|checkslots|slots", CommandType.Debug, "playercount: Prints details regarding player slot usage of server.", (string[] args) =>
+            {
+                GameMain.NilMod.DisableParticles = !GameMain.NilMod.DisableParticles;
+                NewMessage("There are " + (GameMain.Server.ConnectedClients.Count()) + " connected clients on the server.", Color.Cyan);
+                NewMessage("Owners = " + GameMain.NilMod.Owners + "/" + GameMain.NilMod.MaxOwnerSlots, Color.Green);
+                NewMessage("Admins = " + GameMain.NilMod.Admins + "/" + GameMain.NilMod.MaxAdminSlots, Color.Green);
+                NewMessage("Trusted = " + GameMain.NilMod.Trusted + "/" + GameMain.NilMod.MaxTrustedSlots, Color.Green);
+                NewMessage("Spectators = " + GameMain.NilMod.Spectators + "/" + GameMain.NilMod.MaxSpectatorSlots, Color.Green);
+                NewMessage("Players = " + GameMain.NilMod.CurrentPlayers + "/" + GameMain.Server.maxPlayers, Color.Green);
+                NewMessage("OtherSlotsExcludeSpectators = " + (GameMain.NilMod.OtherSlotsExcludeSpectators ? "No." : "Yes."), Color.Green);
             }));
 
         }

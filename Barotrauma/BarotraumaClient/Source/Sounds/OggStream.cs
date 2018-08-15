@@ -54,11 +54,14 @@ namespace Barotrauma.Sounds
                 if (!string.IsNullOrEmpty(extraErrorMsg)) errorMsg += " {" + extraErrorMsg + "} ";
                 errorMsg += "\n" + Environment.StackTrace;
 
+                if (GameMain.NilMod.ShowOpenALErrors)
+                {
 #if DEBUG
-                DebugConsole.ThrowError(errorMsg);
+                    DebugConsole.ThrowError(errorMsg);
 #else
-                DebugConsole.NewMessage(errorMsg, Microsoft.Xna.Framework.Color.Red);
+                    DebugConsole.NewMessage(errorMsg, Microsoft.Xna.Framework.Color.Red);
 #endif
+                }
                 GameAnalyticsManager.AddErrorEventOnce(
                     "OggStream.Check:" + AL.GetErrorString(error) + extraErrorMsg,
                     GameAnalyticsSDK.Net.EGAErrorSeverity.Error,

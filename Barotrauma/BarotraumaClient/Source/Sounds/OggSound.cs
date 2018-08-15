@@ -106,7 +106,7 @@ namespace Barotrauma.Sounds
                 AL.DeleteBuffer(alBufferId);
                 alBufferId = 0;
             }
-            
+
             //if (ALHelper.Efx.IsInitialized)
             //    ALHelper.Efx.DeleteFilter(alFilterId);
 

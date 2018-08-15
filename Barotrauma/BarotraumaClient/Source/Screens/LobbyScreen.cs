@@ -90,9 +90,10 @@ namespace Barotrauma
             campaignUI.OnLocationSelected = SelectLocation;
             campaignUI.UpdateCharacterLists();
 
+
             GameAnalyticsManager.SetCustomDimension01("singleplayer");
         }
-        
+
         public override void AddToGUIUpdateList()
         {
             base.AddToGUIUpdateList();
@@ -186,13 +187,18 @@ namespace Barotrauma
         private void StartRound()
         {
             if (GameMain.GameSession.Map.SelectedConnection == null) return;
-
+            LoadingScreen.loadType = LoadType.Singleplayer;
             GameMain.Instance.ShowLoading(LoadRound());
         }
 
         private IEnumerable<object> LoadRound()
         {
             GameMain.GameSession.StartRound(campaignUI.SelectedLevel, true);
+            //Single player initialization logic
+            if(GameMain.Server == null && GameMain.Client == null)
+            {
+                GameMain.NilMod.GameInitialize(false);
+            }
             GameMain.GameScreen.Select();
 
             yield return CoroutineStatus.Success;

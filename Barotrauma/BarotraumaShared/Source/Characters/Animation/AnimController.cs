@@ -70,5 +70,5 @@ namespace Barotrauma
 
         public virtual void UpdateUseItem(bool allowMovement, Vector2 handPos) { }
 
-   }
+    }
 }

@@ -4,6 +4,7 @@ using Lidgren.Network;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 using System.Linq;
+using System;
 
 namespace Barotrauma
 {
@@ -46,8 +47,8 @@ namespace Barotrauma
             }
             return -1;
         }
-        
-        /// Returns true if the item owns any of the parent inventories
+
+        /// Returns true if the item owns any of the parent inventories 
         public virtual bool ItemOwnsSelf(Item item)
         {
             if (Owner == null) return false;
@@ -185,7 +186,7 @@ namespace Barotrauma
                 item.ParentInventory = null;                
             }
         }
-            
+
         public void ClientWrite(NetBuffer msg, object[] extraData = null)
         {
             ServerWrite(msg, null);
@@ -202,22 +203,20 @@ namespace Barotrauma
             {
                 newItemIDs[i] = msg.ReadUInt16();
             }
-            
-            if (c == null || c.Character == null || !c.Character.CanAccessInventory(this)) return;            
 
-            for (int i = 0; i < capacity; i++)
+            if (c == null || c.Character == null || !c.Character.CanAccessInventory(this))
             {
-                if (newItemIDs[i] == 0 || (Entity.FindEntityByID(newItemIDs[i]) as Item != Items[i]))
-                {
-                    if (Items[i] != null) Items[i].Drop();
-                    System.Diagnostics.Debug.Assert(Items[i] == null);
-                }
+                return;
             }
 
-
             for (int i = 0; i < capacity; i++)
             {
-                if (newItemIDs[i] > 0)
+                if (newItemIDs[i] == 0)
+                {
+                    if (Items[i] != null) Items[i].Drop(c.Character);
+                    System.Diagnostics.Debug.Assert(Items[i]==null);
+                }
+                else
                 {
                     var item = Entity.FindEntityByID(newItemIDs[i]) as Item;
                     if (item == null || item == Items[i]) continue;
@@ -239,11 +238,27 @@ namespace Barotrauma
                 {
                     if (Owner == c.Character)
                     {
-                        GameServer.Log(c.Character.LogName+ " picked up " + item.Name, ServerLog.MessageType.Inventory);
+                        if (item.ContainedItems == null || item.ContainedItems.All(i => i == null))
+                        {
+                            GameServer.Log(c.Character.LogName+ " picked up " + item.Name, ServerLog.MessageType.Inventory);
+                        }
+                        else
+                        {
+                            GameServer.Log(
+                                c.Character.LogName + " picked up " + item.Name + " (contained items: " + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")",
+                                ServerLog.MessageType.Inventory);
+                        }
                     }
                     else
                     {
-                        GameServer.Log(c.Character.LogName + " placed " + item.Name + " in " + Owner, ServerLog.MessageType.Inventory);
+                        if (item.ContainedItems == null || item.ContainedItems.All(i => i == null))
+                        {
+                            GameServer.Log(c.Character.LogName + " placed " + item.Name + " in " + Owner, ServerLog.MessageType.Inventory);
+                        }
+                        else
+                        {
+                            GameServer.Log(c.Character.LogName + " placed " + item.Name + " (contained items: " + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")" + " in " + Owner, ServerLog.MessageType.Inventory);
+                        }
                     }
                 }
             }
@@ -254,11 +269,25 @@ namespace Barotrauma
                 {
                     if (Owner == c.Character)
                     {
-                        GameServer.Log(c.Character.LogName + " dropped " + item.Name, ServerLog.MessageType.Inventory);
+                        if (item.ContainedItems == null || item.ContainedItems.All(i => i == null))
+                        {
+                            GameServer.Log(c.Character.LogName + " dropped " + item.Name, ServerLog.MessageType.Inventory);
+                        }
+                        else
+                        {
+                            GameServer.Log(c.Character.LogName + " dropped " + item.Name + " (contained items: " + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")", ServerLog.MessageType.Inventory);
+                        }
                     }
                     else
                     {
-                        GameServer.Log(c.Character.LogName + " removed " + item.Name + " from " + Owner, ServerLog.MessageType.Inventory);
+                        if (item.ContainedItems == null || item.ContainedItems.All(i => i == null))
+                        {
+                            GameServer.Log(c.Character.LogName + " removed " + item.Name + " from " + Owner, ServerLog.MessageType.Inventory);
+                        }
+                        else
+                        {
+                            GameServer.Log(c.Character.LogName + " removed " + item.Name + " (contained items: " + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")" + " from " + Owner, ServerLog.MessageType.Inventory);
+                        }
                     }
                 }
             }

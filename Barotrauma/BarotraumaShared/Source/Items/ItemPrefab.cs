@@ -315,11 +315,11 @@ namespace Barotrauma
                         canSpriteFlipX = subElement.GetAttributeBool("canflipx", true);
 
                         sprite = new Sprite(subElement, spriteFolder);
+                        size = sprite.size;
                         if (subElement.Attribute("sourcerect") == null)
                         {
                             DebugConsole.ThrowError("Warning - sprite sourcerect not configured for item \"" + Name + "\"!");
                         }
-                        size = sprite.size;
                         break;
 #if CLIENT
                     case "brokensprite":

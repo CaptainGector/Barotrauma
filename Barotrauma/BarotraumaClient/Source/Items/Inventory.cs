@@ -476,10 +476,10 @@ namespace Barotrauma
                 receivedItemIDs[i] = msg.ReadUInt16();
             }
 
-            //delay applying the new state if less than 1 second has passed since this client last sent a state to the server
-            //prevents the inventory from briefly reverting to an old state if items are moved around in quick succession
+            //delay applying the new state if less than 1 second has passed since this client last sent a state to the server 
+            //prevents the inventory from briefly reverting to an old state if items are moved around in quick succession 
 
-            //also delay if we're still midround syncing, some of the items in the inventory may not exist yet
+            //also delay if we're still midround syncing, some of the items in the inventory may not exist yet 
             if (syncItemsDelay > 0.0f || GameMain.Client.MidRoundSyncing)
             {
                 if (syncItemsCoroutine != null) CoroutineManager.StopCoroutines(syncItemsCoroutine);
@@ -524,7 +524,7 @@ namespace Barotrauma
                     System.Diagnostics.Debug.Assert(Items[i] == null);
                 }
             }
-            
+
             for (int i = 0; i < capacity; i++)
             {
                 if (receivedItemIDs[i] > 0)

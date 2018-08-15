@@ -224,7 +224,7 @@ namespace Barotrauma
                 return ConvertUnits.ToSimUnits(Position);
             }
         }
-
+        
         public Vector2 Velocity
         {
             get { return subBody == null ? Vector2.Zero : subBody.Velocity; }
@@ -311,12 +311,12 @@ namespace Barotrauma
                             using (MemoryStream mem = new MemoryStream(Convert.FromBase64String(previewImageData)))
                             {
                                 PreviewImage = new Sprite(TextureLoader.FromStream(mem), null, null);
-                            }                    
+                            }
                         }
                         catch (Exception e)
                         {
                             DebugConsole.ThrowError("Loading the preview image of the submarine \"" + Name + "\" failed. The file may be corrupted.", e);
-                            GameAnalyticsManager.AddErrorEventOnce("Submarine..ctor:PreviewImageLoadingFailed", GameAnalyticsSDK.Net.EGAErrorSeverity.Error, 
+                            GameAnalyticsManager.AddErrorEventOnce("Submarine..ctor:PreviewImageLoadingFailed", GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
                                 "Loading the preview image of the submarine \"" + Name + "\" failed. The file may be corrupted.");
                             PreviewImage = null;
                         }
@@ -633,7 +633,7 @@ namespace Barotrauma
             lastPickedPosition = rayStart + (rayEnd - rayStart) * closestFraction;
             lastPickedFraction = closestFraction;
             lastPickedNormal = closestNormal;
-            
+
             return closestBody;
         }
         
@@ -711,7 +711,7 @@ namespace Barotrauma
             foreach (MapEntity e in subEntities)
             {
                 if (e.MoveWithLevel || e is Item) continue;
-                
+
                 if (e is LinkedSubmarine)
                 {
                     Submarine sub = ((LinkedSubmarine)e).Sub;
@@ -807,7 +807,6 @@ namespace Barotrauma
                 LockX ? 0.0f : subBody.Body.LinearVelocity.X,
                 LockY ? 0.0f : subBody.Body.LinearVelocity.Y);
 
-
             subBody.Update(deltaTime);
 
             for (int i = 0; i < 2; i++)
@@ -817,7 +816,7 @@ namespace Barotrauma
             }
 
             //send updates more frequently if moving fast
-            networkUpdateTimer -= MathHelper.Clamp(Velocity.Length() * 10.0f, 0.1f, 5.0f) * deltaTime;
+            networkUpdateTimer -= MathHelper.Clamp(Velocity.Length() *10.0f, 0.1f, 5.0f) * deltaTime;
 
             if (networkUpdateTimer < 0.0f)
             {
@@ -908,7 +907,7 @@ namespace Barotrauma
 
         public static void RefreshSavedSubs()
         {
-            for (int i = savedSubmarines.Count - 1; i>= 0; i--)
+            for (int i = savedSubmarines.Count - 1; i >= 0; i--)
             {
                 savedSubmarines[i].Dispose();
             }

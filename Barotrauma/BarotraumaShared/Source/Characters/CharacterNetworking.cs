@@ -79,7 +79,7 @@ namespace Barotrauma
 
         private List<CharacterStateInfo> memState        = new List<CharacterStateInfo>();
         private List<CharacterStateInfo> memLocalState   = new List<CharacterStateInfo>();
-        
+
         private bool networkUpdateSent;
 
         public bool isSynced = false;
@@ -156,7 +156,7 @@ namespace Barotrauma
                         cursorPosition = (ViewTarget == null ? AnimController.AimSourcePos : ViewTarget.Position)
                             + new Vector2((float)Math.Cos(aimAngle), (float)Math.Sin(aimAngle)) * 60.0f;
 
-                        //reset focus when attempting to use/select something
+                        //reset focus when attempting to use/select something 
                         if (memInput[memInput.Count - 1].states.HasFlag(InputNetFlags.Use) ||
                             memInput[memInput.Count - 1].states.HasFlag(InputNetFlags.Select))
                         {
@@ -180,7 +180,7 @@ namespace Barotrauma
                                 focusedItem = null;
                             }
                         }
-
+                        
                         memInput.RemoveAt(memInput.Count - 1);
 
                         TransformCursorPos();
@@ -283,8 +283,22 @@ namespace Barotrauma
 
                     UInt16 networkUpdateID = msg.ReadUInt16();
                     byte inputCount = msg.ReadByte();
-
-                    if (AllowInput) Enabled = true;                   
+                    try
+                    {
+                        if (AllowInput) Enabled = true;
+                    }
+                    catch(NullReferenceException e)
+                    {
+                        DebugConsole.NewMessage("Critical error occured in CHARACTERNETWORKING.SERVERREAD - Failiure to enable character to due error: " + e.Message, Color.Red);
+                        DebugConsole.NewMessage("Character: " + Name + " Has been removed to prevent server crash (Hopefully!)", Color.Red);
+                        GameMain.Server.ServerLog.WriteLine("Critical error occured in CHARACTERNETWORKING.SERVERREAD - Failiure to enable character to due error: " + e.Message, ServerLog.MessageType.Error);
+                        GameMain.Server.ServerLog.WriteLine("Character: " + Name + " Has been removed to prevent server crash (Hopefully!)", ServerLog.MessageType.Error);
+#if CLIENT
+                            if (this == Character.controlled) Character.controlled = null;
+#endif
+                        Enabled = false;
+                        Entity.Spawner.AddToRemoveQueue(this);
+                    }
 
                     for (int i = 0; i < inputCount; i++)
                     {
@@ -301,6 +315,44 @@ namespace Barotrauma
                             newInteract = msg.ReadUInt16();                 
                         }
 
+                        /*
+                        if (GameMain.NilMod.DisconnectedCharacters.Count > 0)
+                        {
+                            DisconnectedCharacter disconnectedcharcheck = GameMain.NilMod.DisconnectedCharacters.Find(dc => dc.character.Name == c.Name && c.Connection.RemoteEndPoint.Address.ToString() == dc.IPAddress);
+
+                            if (disconnectedcharcheck != null)
+                            {
+                                if (!disconnectedcharcheck.character.IsDead)
+                                {
+                                    SetStun(Math.Min(disconnectedcharcheck.DisconnectStun + GameMain.NilMod.ReconnectAddStun, 60f), true, false, true);
+                                    GameMain.NilMod.DisconnectedCharacters.Remove(disconnectedcharcheck);
+
+                                    var chatMsg = ChatMessage.Create(
+                                                "",
+                                                ("You have been reconnected to your character - However as a penalty you have taken " + Math.Round(GameMain.NilMod.ReconnectAddStun, 1).ToString() + " seconds stun on top of your original stun.\n"),
+                                                (ChatMessageType)ChatMessageType.Server,
+                                                null);
+
+                                    GameMain.Server.SendChatMessage(chatMsg, c);
+                                    break;
+                                }
+                                else
+                                {
+                                    SetStun(0f, true, true, true);
+                                    GameMain.NilMod.DisconnectedCharacters.Remove(disconnectedcharcheck);
+
+                                    var chatMsg = ChatMessage.Create(
+                                                "",
+                                                ("You have been reconnected to your character - However while you were gone your character has been killed.\n"),
+                                                (ChatMessageType)ChatMessageType.Server,
+                                                null);
+
+                                    GameMain.Server.SendChatMessage(chatMsg, c);
+                                }
+                            }
+                        }
+                        */
+
                         //if (AllowInput)
                         //{
                         if (NetIdUtils.IdMoreRecent((ushort)(networkUpdateID - i), LastNetworkUpdateID) && (i < 60))
@@ -313,6 +365,13 @@ namespace Barotrauma
                             newMem.networkUpdateID = (ushort)(networkUpdateID - i);
 
                             memInput.Insert(i, newMem);
+                        }
+                        else if(LastNetworkUpdateID >= (networkUpdateID + 40))
+                        {
+                            while(LastNetworkUpdateID >= (networkUpdateID + 40))
+                            {
+                                LastNetworkUpdateID -= 30;
+                            }
                         }
                         //}
                     }
@@ -359,7 +418,7 @@ namespace Barotrauma
 
                             if (IsUnconscious)
                             {
-                                Kill(lastAttackCauseOfDeath);
+                                Kill(lastAttackCauseOfDeath, false, true);
                             }
                             break;
                         case 3:
@@ -513,7 +572,7 @@ namespace Barotrauma
 
                 if (AnimController?.LimbJoints == null)
                 {
-                    //0 limbs severed
+                    //0 limbs severed 
                     msg.Write((byte)0);
                 }
                 else
@@ -535,7 +594,14 @@ namespace Barotrauma
             }
             else
             {
-                msg.WriteRangedSingle(health, minHealth, maxHealth, 8);
+                if (GameMain.NilMod.HideConciousCreatureHealth && (!(AIController is HumanAIController || SpeciesName.ToLowerInvariant() == "human")) && Stun <= 2f)
+                {
+                    msg.WriteRangedSingle(100f, 0f, 100f, 8);
+                }
+                else
+                {
+                    msg.WriteRangedSingle(health, minHealth, maxHealth, 8);
+                }
 
                 msg.Write(oxygen < 100.0f);
                 if (oxygen < 100.0f)
@@ -546,7 +612,7 @@ namespace Barotrauma
                 msg.Write(bleeding > 0.0f);
                 if (bleeding > 0.0f)
                 {
-                    msg.WriteRangedSingle(bleeding, 0.0f, 5.0f, 8);
+                    msg.WriteRangedSingle(Math.Max(0.35f,bleeding), 0.0f, 5.0f, 8);
                 }
 
                 msg.Write(Stun > 0.0f);

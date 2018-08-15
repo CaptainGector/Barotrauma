@@ -14,7 +14,7 @@ namespace Barotrauma
         {
             lock (QueuedCommands)
             {
-                while (QueuedCommands.Count > 0)
+                while (QueuedCommands.Count>0)
                 {
                     ExecuteCommand(QueuedCommands[0]);
                     QueuedCommands.RemoveAt(0);
@@ -24,7 +24,7 @@ namespace Barotrauma
 
         private static void InitProjectSpecific()
         {
-            commands.Add(new Command("restart|reset", "restart/reset: Close and restart the server.", (string[] args) =>
+            commands.Add(new Command("restart|reset", CommandType.Network, "restart/reset: Close and restart the server.", (string[] args) =>
             {
                 NewMessage("*****************", Color.Lime);
                 NewMessage("RESTARTING SERVER", Color.Lime);
@@ -33,36 +33,36 @@ namespace Barotrauma
                 GameMain.Instance.StartServer();
             }));
 
-            commands.Add(new Command("exit|quit|close", "exit/quit/close: Exit the application.", (string[] args) =>
+            commands.Add(new Command("exit|quit|close", CommandType.Network, "exit/quit/close: Exit the application.", (string[] args) =>
             {
                 GameMain.ShouldRun = false;
             }));
 
-            commands.Add(new Command("say", "say [message]: Send a chat message that displays \"HOST\" as the sender.", (string[] args) =>
+            commands.Add(new Command("say", CommandType.Network, "say [message]: Send a chat message that displays \"HOST\" as the sender.", (string[] args) =>
             {
                 string text = string.Join(" ", args);
                 text = "HOST: " + text;
                 GameMain.Server.SendChatMessage(text, ChatMessageType.Server);
             }));
 
-            commands.Add(new Command("msg", "msg [message]: Send a chat message with no sender specified.", (string[] args) =>
+            commands.Add(new Command("msg", CommandType.Network, "msg [message]: Send a chat message with no sender specified.", (string[] args) =>
             {
                 string text = string.Join(" ", args);
                 GameMain.Server.SendChatMessage(text, ChatMessageType.Server);
             }));
 
-            commands.Add(new Command("servername", "servername [name]: Change the name of the server.", (string[] args) =>
+            commands.Add(new Command("servername", CommandType.Network, "servername [name]: Change the name of the server.", (string[] args) =>
             {
                 GameMain.Server.Name = string.Join(" ", args);
                 GameMain.NetLobbyScreen.ChangeServerName(string.Join(" ", args));
             }));
 
-            commands.Add(new Command("servermsg", "servermsg [message]: Change the message displayed in the server lobby.", (string[] args) =>
+            commands.Add(new Command("servermsg", CommandType.Network, "servermsg [message]: Change the message displayed in the server lobby.", (string[] args) =>
             {
                 GameMain.NetLobbyScreen.ChangeServerMessage(string.Join(" ", args));
             }));
 
-            commands.Add(new Command("seed|levelseed", "seed/levelseed: Changes the level seed for the next round.", (string[] args) =>
+            commands.Add(new Command("seed|levelseed", CommandType.Network, "seed/levelseed: Changes the level seed for the next round.", (string[] args) =>
             {
                 GameMain.NetLobbyScreen.LevelSeed = string.Join(" ", args);
             }));
@@ -73,7 +73,7 @@ namespace Barotrauma
                 NewMessage((GameMain.Server.RandomizeSeed ? "Enabled" : "Disabled") + " level seed randomization.", Color.Cyan);
             }));
 
-            commands.Add(new Command("gamemode", "gamemode [name]/[index]: Select the game mode for the next round. The parameter can either be the name or the index number of the game mode (0 = sandbox, 1 = mission, etc).", (string[] args) =>
+            commands.Add(new Command("gamemode", CommandType.Network, "gamemode [name]/[index]: Select the game mode for the next round. The parameter can either be the name or the index number of the game mode (0 = sandbox, 1 = mission, etc).", (string[] args) =>
             {
                 int index = -1;
                 if (int.TryParse(string.Join(" ", args), out index))
@@ -110,7 +110,7 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("mission", "mission [name]/[index]: Select the mission type for the next round. The parameter can either be the name or the index number of the mission type (0 = first mission type, 1 = second mission type, etc).", (string[] args) =>
+            commands.Add(new Command("mission", CommandType.Network, "mission [name]/[index]: Select the mission type for the next round. The parameter can either be the name or the index number of the mission type (0 = first mission type, 1 = second mission type, etc).", (string[] args) =>
             {
                 int index = -1;
                 if (int.TryParse(string.Join(" ", args), out index))
@@ -131,7 +131,7 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("sub|submarine", "submarine [name]: Select the submarine for the next round.", (string[] args) =>
+            commands.Add(new Command("sub|submarine", CommandType.Network, "submarine [name]: Select the submarine for the next round.", (string[] args) =>
             {
                 Submarine sub = GameMain.NetLobbyScreen.GetSubList().Find(s => s.Name.ToLower() == string.Join(" ", args).ToLower());
 
@@ -150,7 +150,7 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("shuttle", "shuttle [name]: Select the specified submarine as the respawn shuttle for the next round.", (string[] args) =>
+            commands.Add(new Command("shuttle", CommandType.Network, "shuttle [name]: Select the specified submarine as the respawn shuttle for the next round.", (string[] args) =>
             {
                 Submarine shuttle = GameMain.NetLobbyScreen.GetSubList().Find(s => s.Name.ToLower() == string.Join(" ", args).ToLower());
 
@@ -169,19 +169,20 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("startgame|startround|start", "start/startgame/startround: Start a new round.", (string[] args) =>
+            commands.Add(new Command("startgame|startround|start", CommandType.Network, "start/startgame/startround: Start a new round.", (string[] args) =>
             {
                 if (Screen.Selected == GameMain.GameScreen) return;
                 if (!GameMain.Server.StartGame()) NewMessage("Failed to start a new round", Color.Yellow);
             }));
 
-            commands.Add(new Command("endgame|endround|end", "end/endgame/endround: End the current round.", (string[] args) =>
+            commands.Add(new Command("endgame|endround|end", CommandType.Network, "end/endgame/endround: End the current round.", (string[] args) =>
             {
                 if (Screen.Selected == GameMain.NetLobbyScreen) return;
+                GameMain.NilMod.RoundEnded = true;
                 GameMain.Server.EndGame();
             }));
-            
-            commands.Add(new Command("entitydata", "", (string[] args) =>
+
+            commands.Add(new Command("entitydata", CommandType.Debug, "", (string[] args) =>
             {
                 if (args.Length == 0) return;
                 Entity ent = Entity.FindEntityByID(Convert.ToUInt16(args[0]));
@@ -190,18 +191,8 @@ namespace Barotrauma
                     NewMessage(ent.ToString(), Color.Lime);
                 }
             }));
-
-            //"dummy commands" that only exist so that the server can give clients permissions to use them
-            commands.Add(new Command("control|controlcharacter", "control [character name]: Start controlling the specified character (client-only).", null));
-            commands.Add(new Command("los", "Toggle the line of sight effect on/off (client-only).", null));
-            commands.Add(new Command("lighting|lights", "Toggle lighting on/off (client-only).", null));
-            commands.Add(new Command("debugdraw", "Toggle the debug drawing mode on/off (client-only).", null));
-            commands.Add(new Command("togglehud|hud", "Toggle the character HUD (inventories, icons, buttons, etc) on/off (client-only).", null));
-            commands.Add(new Command("followsub", "Toggle whether the camera should follow the nearest submarine (client-only).", null));
-            commands.Add(new Command("toggleaitargets|aitargets", "Toggle the visibility of AI targets (= targets that enemies can detect and attack/escape from) (client-only).", null));
-
 #if DEBUG
-            commands.Add(new Command("eventdata", "", (string[] args) =>
+            commands.Add(new Command("eventdata", CommandType.Debug, "", (string[] args) =>
             {
                 if (args.Length == 0) return;
                 ServerEntityEvent ev = GameMain.Server.EntityEventManager.Events[Convert.ToUInt16(args[0])];
@@ -211,7 +202,7 @@ namespace Barotrauma
                 }
             }));
 
-            commands.Add(new Command("spamchatmessages", "", (string[] args) =>
+            commands.Add(new Command("spamchatmessages", CommandType.Debug, "", (string[] args) =>
             {
                 int msgCount = 1000;
                 if (args.Length > 0) int.TryParse(args[0], out msgCount);
@@ -224,6 +215,27 @@ namespace Barotrauma
                 }
             }));
 #endif
+
+
+            //"dummy commands" that only exist so that the server can give clients permissions to use them 
+            commands.Add(new Command("control|controlcharacter", CommandType.ClientOnly, "control [character name]: Start controlling the specified character (client-only).", null));
+            commands.Add(new Command("los", CommandType.ClientOnly, "Toggle the line of sight effect on/off (client-only).", null));
+            commands.Add(new Command("lighting|lights", CommandType.ClientOnly, "Toggle lighting on/off (client-only).", null));
+            commands.Add(new Command("debugdraw", CommandType.ClientOnly, "Toggle the debug drawing mode on/off (client-only).", null));
+            commands.Add(new Command("togglehud|hud", CommandType.ClientOnly, "Toggle the character HUD (inventories, icons, buttons, etc) on/off (client-only).", null));
+            commands.Add(new Command("followsub", CommandType.ClientOnly, "Toggle whether the camera should follow the nearest submarine (client-only).", null));
+            commands.Add(new Command("toggleaitargets|aitargets", CommandType.ClientOnly, "Toggle the visibility of AI targets (= targets that enemies can detect and attack/escape from) (client-only).", null));
+            commands.Add(new Command("shake", CommandType.ClientOnly, "", null));
+            commands.Add(new Command("save|savesub", CommandType.ClientOnly, "save [submarine name]: Save the currently loaded submarine using the specified name. (client-only)", null));
+            commands.Add(new Command("togglerenderother|renderother", CommandType.ClientOnly, "togglerenderother/renderother: toggles the rendering of particles, lights, los and such. (client-only)", null));
+            commands.Add(new Command("togglerenderlevel|renderlevel", CommandType.ClientOnly, "togglerenderlevel/renderlevel: Specifically toggles rendering for the level. (client-only)", null));
+            commands.Add(new Command("togglerendercharacters|togglerendercharacter|rendercharacters|rendercharacter", CommandType.ClientOnly, "togglerendercharacter/rendercharacter: Specifically toggles rendering for the level. (client-only)", null));
+            commands.Add(new Command("togglerenderstructures|togglerenderstructure|renderstructures|renderstructure", CommandType.ClientOnly, "togglerenderstructure/renderstructure: Specifically toggles rendering for the submarine structures. (client-only)", null));
+            commands.Add(new Command("toggleparticles|particles", CommandType.ClientOnly, "toggleparticles/particles: Toggle the Particle System on/off. (client-only)", null));
+            commands.Add(new Command("spy|spycharacter", CommandType.ClientOnly, "spy: View the game from another characters HUD and location. (client-only)", null));
+            commands.Add(new Command("spyid|spyclientid", CommandType.ClientOnly, "spy: View the game from another characters HUD and location. (client-only)", null));
+            //commands.Add(new Command("toggledeathchat|toggledeath|deathchat", CommandType.ClientOnly, "toggledeathchat: Toggle the visibility of death chat for a living host. (client-only)", null));
+            //commands.Add(new Command("movemainsub|movesub|teleportsub|teleportmainsub", CommandType.ClientOnly, "", null));
         }        
     }
 }

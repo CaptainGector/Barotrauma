@@ -15,6 +15,10 @@ namespace Barotrauma
         public Entity Entity;
         public List<ISerializableEntity> Targets;
         public float Timer;
+        public Character causecharacter;
+        public string identifier;
+
+        public List<int> CancelledEffects = new List<int>();
     }
 
     partial class StatusEffect
@@ -38,7 +42,7 @@ namespace Barotrauma
 #endif
 
         public string[] propertyNames;
-        private object[] propertyEffects;
+        public object[] propertyEffects;
 
         List<PropertyConditional> propertyConditionals;
 
@@ -49,12 +53,12 @@ namespace Barotrauma
         private HashSet<string> onContainingNames;
         private HashSet<string> tags;
         
-        private readonly float duration;
-        public static readonly List<DurationListElement> DurationList = new List<DurationListElement>();
+        public readonly float duration;
+        public static List<DurationListElement> DurationList = new List<DurationListElement>();
 
         public bool CheckConditionalAlways; //Always do the conditional checks for the duration/delay. If false, only check conditional on apply.
 
-        public bool Stackable = true; //Can the same status effect be applied several times to the same targets?
+        public bool Stackable = true; //Can the same status effect be applied several times to the same targets? 
 
         private readonly int useItemCount;
 
@@ -278,19 +282,22 @@ namespace Barotrauma
             return false;
         }
 
-        public virtual void Apply(ActionType type, float deltaTime, Entity entity, ISerializableEntity target)
+        public virtual void Apply(ActionType type, float deltaTime, Entity entity, ISerializableEntity target, Character causecharacter = null, string identifier = "")
         {
             if (this.type != type || !HasRequiredItems(entity)) return;
 
             if (targetNames != null && !targetNames.Contains(target.Name)) return;
-            
+
             if (duration > 0.0f && !Stackable)
             {
                 //ignore if not stackable and there's already an identical statuseffect
+                //if (DurationList.Any(d => d.Parent == this && d.Entity == entity && d.Targets.Count == 1 && d.Targets[0] == target)) return;
+
                 DurationListElement existingEffect = DurationList.Find(d => d.Parent == this && d.Targets.Count == 1 && d.Targets[0] == target);
                 if (existingEffect != null)
                 {
                     existingEffect.Timer = Math.Max(existingEffect.Timer, duration);
+                    existingEffect.causecharacter = causecharacter;
                     return;
                 }
             }
@@ -300,17 +307,17 @@ namespace Barotrauma
 
             if (!HasRequiredConditions(targets)) return;
 
-            Apply(deltaTime, entity, targets);
+            Apply(deltaTime, entity, targets,null, causecharacter, identifier);
         }
 
-        public virtual void Apply(ActionType type, float deltaTime, Entity entity, List<ISerializableEntity> targets)
+        public virtual void Apply(ActionType type, float deltaTime, Entity entity, List<ISerializableEntity> targets, Character causecharacter = null, string identifier = "")
         {
             if (this.type != type) return;
 
             //remove invalid targets
             if (targetNames != null)
             {
-                targets.RemoveAll(t => 
+                targets.RemoveAll(t =>
                 {
                     Item item = t as Item;
                     if (item == null)
@@ -336,14 +343,15 @@ namespace Barotrauma
                 if (existingEffect != null)
                 {
                     existingEffect.Timer = Math.Max(existingEffect.Timer, duration);
+                    existingEffect.causecharacter = causecharacter;
                     return;
                 }
             }
 
-            Apply(deltaTime, entity, targets);
+            Apply(deltaTime, entity, targets,null, causecharacter, identifier);
         }
 
-        protected void Apply(float deltaTime, Entity entity, List<ISerializableEntity> targets)
+        protected void Apply(float deltaTime, Entity entity, List<ISerializableEntity> targets, List<int> cancelledEffects = null, Character causecharacter = null, string identifier = "")
         {
 #if CLIENT
             if (sound != null)
@@ -365,13 +373,15 @@ namespace Barotrauma
                 }
             }
 #endif
+
+            if (identifier == "") identifier = "statuseffect";
             
             for (int i = 0; i < useItemCount; i++)
             {
                 foreach (Item item in targets.FindAll(t => t is Item).Cast<Item>())
                 {
                     if (item.Removed) continue;
-                    item.Use(deltaTime, targets.FirstOrDefault(t => t is Character) as Character);
+                    item.Use(deltaTime, targets.FirstOrDefault(t => t is Character) as Character, causecharacter, identifier);
                 }
             }
 
@@ -390,11 +400,72 @@ namespace Barotrauma
                 element.Timer = duration;
                 element.Entity = entity;
                 element.Targets = targets;
+                if(cancelledEffects != null) element.CancelledEffects = cancelledEffects;
+                element.causecharacter = causecharacter;
+                element.identifier = identifier;
+
+/*                    if (!target.SerializableProperties.TryGetValue(propertyNames[i], out property)) continue;
+
+                    if (duration > 0.0f)
+                    {
+                        if (GameMain.Server != null)
+                        {
+                            if (target is Character)
+                            {
+                                Character effectedcharacter = (Character)target;
+
+                                if (GameMain.NilMod.LogStatusEffectStun && property.Name.ToLowerInvariant() == "health" && propertyEffects[i] is float && (float)propertyEffects[i] < 0f)
+                                {
+                                    Barotrauma.Networking.GameServer.Log(effectedcharacter.Name + " Poisoned for " + Math.Round((float)propertyEffects[i], 2) + " health per second for " + ToolBox.SecondsToReadableTime(duration) + ".", Networking.ServerLog.MessageType.Attack);
+                                }
+                                else if (GameMain.NilMod.LogStatusEffectHealth && property.Name.ToLowerInvariant() == "health" && propertyEffects[i] is float && (float)propertyEffects[i] < 0f)
+                                {
+                                    Barotrauma.Networking.GameServer.Log(effectedcharacter.Name + " Poisoned for " + Math.Round((float)propertyEffects[i], 2) + " health per second for " + ToolBox.SecondsToReadableTime(duration) + ".", Networking.ServerLog.MessageType.Attack);
+                                }
+                                else if (GameMain.NilMod.LogStatusEffectBleed && property.Name.ToLowerInvariant() == "bleeding" && propertyEffects[i] is float && (float)propertyEffects[i] < 0f)
+                                {
+                                    Barotrauma.Networking.GameServer.Log(effectedcharacter.Name + " Poisoned for " + Math.Round((float)propertyEffects[i], 2) + " bleed per second for " + ToolBox.SecondsToReadableTime(duration) + ".", Networking.ServerLog.MessageType.Attack);
+                                }
+                                else if (GameMain.NilMod.LogStatusEffectOxygen && property.Name.ToLowerInvariant() == "oxygen" && propertyEffects[i] is float && (float)propertyEffects[i] < 0f)
+                                {
+                                    Barotrauma.Networking.GameServer.Log(effectedcharacter.Name + " Poisoned for " + Math.Round((float)propertyEffects[i], 2) + " oxygen per second for " + ToolBox.SecondsToReadableTime(duration) + ".", Networking.ServerLog.MessageType.Attack);
+                                }
+                            }
+                        }*/
 
                 DurationList.Add(element);
             }
             else
             {
+/*                        if (GameMain.Server != null)
+                        {
+                            if (target is Character)
+                            {
+                                Character effectedcharacter = (Character)target;
+
+                                //Only show values that are not continous to a character over time, that'd get rediculous fast.
+                                if (deltaTime == 1f)
+                                {
+                                    if (GameMain.NilMod.LogStatusEffectStun && property.Name.ToLowerInvariant() == "stun" && propertyEffects[i] is float && (float)propertyEffects[i] > 5f)
+                                    {
+                                        Barotrauma.Networking.GameServer.Log(effectedcharacter.Name + " Stunned for " + (Math.Round((float)propertyEffects[i] * (1f - effectedcharacter.Stunresistance), 2)) + " (" + Math.Round(effectedcharacter.Stunresistance * 100f, 2) + "% Resisted).", Networking.ServerLog.MessageType.Attack);
+                                    }
+                                    else if (GameMain.NilMod.LogStatusEffectHealth && property.Name.ToLowerInvariant() == "health" && propertyEffects[i] is float && (float)propertyEffects[i] < 5f)
+                                    {
+                                        Barotrauma.Networking.GameServer.Log(effectedcharacter.Name + " Poisoned for " + Math.Round((float)propertyEffects[i], 2) + " health.", Networking.ServerLog.MessageType.Attack);
+                                    }
+                                    else if (GameMain.NilMod.LogStatusEffectBleed && property.Name.ToLowerInvariant() == "bleeding" && propertyEffects[i] is float && (float)propertyEffects[i] < 5f)
+                                    {
+                                        Barotrauma.Networking.GameServer.Log(effectedcharacter.Name + " Poisoned for " + Math.Round((float)propertyEffects[i], 2) + " bleed.", Networking.ServerLog.MessageType.Attack);
+                                    }
+                                    else if (GameMain.NilMod.LogStatusEffectOxygen && property.Name.ToLowerInvariant() == "oxygen" && propertyEffects[i] is float && (float)propertyEffects[i] < 5f)
+                                    {
+                                        Barotrauma.Networking.GameServer.Log(effectedcharacter.Name + " Poisoned for " + Math.Round((float)propertyEffects[i], 2) + " oxygen.", Networking.ServerLog.MessageType.Attack);
+                                    }
+                                }
+                            }
+                        }*/
+
                 foreach (ISerializableEntity target in targets)
                 {
                     if (target is Entity targetEntity)
@@ -402,18 +473,172 @@ namespace Barotrauma
                         if (targetEntity.Removed) continue;
                     }
 
-                    for (int i = 0; i < propertyNames.Length; i++)
+                    if (target is Character)
                     {
-                        SerializableProperty property;
-                        if (target == null || target.SerializableProperties == null || !target.SerializableProperties.TryGetValue(propertyNames[i], out property)) continue;
+                        for (int i = 0; i < propertyNames.Length; i++)
+                        {
+                            SerializableProperty property;
+                            if (cancelledEffects != null && cancelledEffects.Contains(i)) continue;
+                            if (target == null || target.SerializableProperties == null || !target.SerializableProperties.TryGetValue(propertyNames[i], out property)) continue;
+                            float prevstat = 0f;
+                            Character targetcharacter = target as Character;
+                            Boolean prevdead = targetcharacter.IsDead;
 
-                        ApplyToProperty(property, propertyEffects[i], deltaTime);
+                            if (propertyEffects[i].GetType() == typeof(float))
+                            {
+                                float propertyfloat = Convert.ToSingle(propertyEffects[i]);
+
+                                switch (property.Name.ToLowerInvariant())
+                                {
+                                    case "health":
+                                        prevstat = targetcharacter.Health;
+                                        if (propertyfloat < 0f) targetcharacter.charRecord.DamageStat("health", -(propertyfloat * CoroutineManager.UnscaledDeltaTime), causecharacter, identifier);
+                                        break;
+                                    case "bleeding":
+                                        if (propertyfloat > 0f) targetcharacter.charRecord.DamageStat("bleeding", (propertyfloat * CoroutineManager.UnscaledDeltaTime), causecharacter, identifier);
+                                        break;
+                                    case "oxygen":
+                                        prevstat = targetcharacter.Oxygen;
+                                        if (propertyfloat < 0f) targetcharacter.charRecord.DamageStat("oxygen", -(propertyfloat * CoroutineManager.UnscaledDeltaTime), causecharacter, identifier);
+                                        break;
+                                    case "stun":
+                                        if (propertyfloat > 0f) targetcharacter.charRecord.DamageStat("stun", (propertyfloat * CoroutineManager.UnscaledDeltaTime), causecharacter, identifier);
+                                        break;
+                                    case "huskinfectionstate":
+                                        if (propertyfloat > 0f) targetcharacter.charRecord.DamageStat("huskinfectionstate", (propertyfloat * CoroutineManager.UnscaledDeltaTime), causecharacter, identifier);
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+
+                            ApplyToProperty(property, propertyEffects[i], deltaTime);
+
+                            if(GameMain.NilMod.EnableGriefWatcher && GameMain.Server != null && causecharacter != null)
+                            {
+                                Barotrauma.Networking.Client targetclient = GameMain.Server.ConnectedClients.Find(c => c.Character == targetcharacter);
+                                Barotrauma.Networking.Client attackingclient = GameMain.Server.ConnectedClients.Find(c => c.Character == causecharacter);
+                                if (attackingclient != null && targetclient != null)
+                                {
+                                    switch (property.Name.ToLowerInvariant())
+                                    {
+                                        case "health":
+                                            if (NilMod.NilModGriefWatcher.PlayerIncapaciteDamage)
+                                            {
+                                                if (!prevdead)
+                                                {
+                                                    if(targetcharacter.IsDead)
+                                                    {
+                                                        NilMod.NilModGriefWatcher.SendWarning(attackingclient.Character.LogName
+                                                            + " Killed player " + targetclient.Character.LogName
+                                                            + " via " + identifier, attackingclient);
+                                                    }
+                                                    else if (prevstat > 0f && targetcharacter.Health < 0f)
+                                                    {
+                                                        NilMod.NilModGriefWatcher.SendWarning(attackingclient.Character.LogName
+                                                            + " Incapacitated player " + targetclient.Character.LogName
+                                                            + " via " + identifier, attackingclient);
+                                                    }
+                                                }
+                                            }
+                                            break;
+                                        case "oxygen":
+                                            if (NilMod.NilModGriefWatcher.PlayerIncapaciteOxygen)
+                                            {
+                                                if (!prevdead)
+                                                {
+                                                    if (targetcharacter.IsDead)
+                                                    {
+                                                        NilMod.NilModGriefWatcher.SendWarning(attackingclient.Character.LogName
+                                                            + " Killed player " + targetclient.Character.LogName
+                                                            + " via " + identifier, attackingclient);
+                                                    }
+                                                    else if (prevstat > 0f && targetcharacter.Oxygen < 0f)
+                                                    {
+                                                        NilMod.NilModGriefWatcher.SendWarning(attackingclient.Character.LogName
+                                                            + " Incapacitated player " + targetclient.Character.LogName
+                                                            + " via " + identifier, attackingclient);
+                                                    }
+                                                }
+                                            }
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (target is Items.Components.ItemComponent && GameMain.Server != null && causecharacter != null)
+                    {
+                        for (int i = 0; i < propertyNames.Length; i++)
+                        {
+                            SerializableProperty property;
+                            if (cancelledEffects != null && cancelledEffects.Contains(i)) continue;
+                            if (target == null || target.SerializableProperties == null || !target.SerializableProperties.TryGetValue(propertyNames[i], out property)) continue;
+                            Items.Components.ItemComponent targetitemcomponent = target as Items.Components.ItemComponent;
+                            Networking.Client attackingclient = GameMain.Server.ConnectedClients.Find(c => c.Character == causecharacter);
+
+                            Items.Components.Door door = targetitemcomponent as Items.Components.Door;
+                            Boolean previsStuck = false;
+                            //Door stuck griefing here
+                            if (door != null)
+                            {
+                                if (propertyNames[i].ToLowerInvariant() == "stuck")
+                                {
+                                    previsStuck = door.IsStuck;
+                                }
+                            }
+
+                            ApplyToProperty(property, propertyEffects[i], deltaTime);
+
+                            //Door stuck griefing here
+                            if (door != null)
+                            {
+                                if (propertyNames[i].ToLowerInvariant() == "stuck")
+                                {
+                                    if (previsStuck != door.IsStuck)
+                                    {
+                                        if (door.IsStuck)
+                                        {
+                                            Networking.GameServer.Log(causecharacter.LogName
+                                                + (door.LinkedGap != null && door.LinkedGap.IsRoomToRoom ? " sealed interior " : " sealed exterior ")
+                                                + door.Item.Name, Networking.ServerLog.MessageType.ItemInteraction);
+
+                                            if (GameMain.NilMod.EnableGriefWatcher && NilMod.NilModGriefWatcher.DoorStuck && attackingclient != null)
+                                                NilMod.NilModGriefWatcher.SendWarning(
+                                                attackingclient.Character.LogName
+                                                + (door.LinkedGap != null && door.LinkedGap.IsRoomToRoom ? " sealed interior " : " sealed exterior ")
+                                                + door.Item.Name
+                                                + " via " + identifier, attackingclient);
+                                        }
+                                        else Networking.GameServer.Log(causecharacter.LogName
+                                            + (door.LinkedGap != null && door.LinkedGap.IsRoomToRoom ? " unsealed interior " : " unsealed exterior ")
+                                            + door.Item.Name, Networking.ServerLog.MessageType.ItemInteraction);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < propertyNames.Length; i++)
+                        {
+                            SerializableProperty property;
+                            if (cancelledEffects != null && cancelledEffects.Contains(i)) continue;
+                            if (target == null || target.SerializableProperties == null || !target.SerializableProperties.TryGetValue(propertyNames[i], out property)) continue;
+
+                            ApplyToProperty(property, propertyEffects[i], deltaTime);
+                        }
                     }
                 }                
             }
 
-
-            if (explosion != null) explosion.Explode(entity.WorldPosition);
+            if (explosion != null)
+            {
+                if(identifier == "statuseffect") explosion.Explode(entity.WorldPosition, causecharacter, "");
+                else explosion.Explode(entity.WorldPosition, causecharacter, identifier);
+            }
 
             
             Hull hull = null;
@@ -497,11 +722,48 @@ namespace Barotrauma
 
                 foreach (ISerializableEntity target in element.Targets)
                 {
-                    for (int n = 0; n < element.Parent.propertyNames.Length; n++)
+                    if (target is Character)
                     {
-                        if (target == null || target.SerializableProperties == null || !target.SerializableProperties.TryGetValue(element.Parent.propertyNames[n], out SerializableProperty property)) continue;
+                        for (int n = 0; n < element.Parent.propertyNames.Length; n++)
+                        {
+                            if (element.CancelledEffects.Contains(n)) continue;
+                            if (target == null || target.SerializableProperties == null || !target.SerializableProperties.TryGetValue(element.Parent.propertyNames[n], out SerializableProperty property)) continue;
 
-                        element.Parent.ApplyToProperty(property, element.Parent.propertyEffects[n], CoroutineManager.UnscaledDeltaTime);
+                            if (element.Parent.propertyEffects[n].GetType() == typeof(float))
+                            {
+                                Character targetcharacter = target as Character;
+                                float propertyfloat = Convert.ToSingle(element.Parent.propertyEffects[n]);
+
+                                switch (property.Name.ToLowerInvariant())
+                                {
+                                    case "health":
+                                        if (propertyfloat < 0f) targetcharacter.charRecord.DamageStat("health", -(propertyfloat * CoroutineManager.UnscaledDeltaTime), element.causecharacter, element.identifier);
+                                        break;
+                                    case "bleeding":
+                                        if (propertyfloat > 0f) targetcharacter.charRecord.DamageStat("bleeding", (propertyfloat * CoroutineManager.UnscaledDeltaTime), element.causecharacter, element.identifier);
+                                        break;
+                                    case "oxygen":
+                                        if (propertyfloat < 0f) targetcharacter.charRecord.DamageStat("oxygen", -(propertyfloat * CoroutineManager.UnscaledDeltaTime), element.causecharacter, element.identifier);
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+
+                            element.Parent.ApplyToProperty(property, element.Parent.propertyEffects[n], CoroutineManager.UnscaledDeltaTime);
+                        }
+                    }
+                    else
+                    {
+                        for (int n = 0; n < element.Parent.propertyNames.Length; n++)
+                        {
+                            if (element.CancelledEffects.Contains(n)) continue;
+                            SerializableProperty property;
+
+                            if (target == null || target.SerializableProperties == null || !target.SerializableProperties.TryGetValue(element.Parent.propertyNames[n], out property)) continue;
+
+                            element.Parent.ApplyToProperty(property, element.Parent.propertyEffects[n], CoroutineManager.UnscaledDeltaTime);
+                        }
                     }
                 }
 

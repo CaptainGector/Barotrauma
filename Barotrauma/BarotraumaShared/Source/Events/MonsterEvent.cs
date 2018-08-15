@@ -20,6 +20,10 @@ namespace Barotrauma
         private bool disallowed;
 
         private bool repeat;
+
+        private int Respawned;
+
+        public int MaxRespawned;
         
         private Level.PositionType spawnPosType;
 
@@ -46,6 +50,8 @@ namespace Barotrauma
 
             minAmount = element.GetAttributeInt("minamount", defaultAmount);
             maxAmount = Math.Max(element.GetAttributeInt("maxamount", 1), minAmount);
+
+            MaxRespawned = maxAmount * GameMain.NilMod.CreatureMaxRespawns;
 
             var spawnPosTypeStr = element.GetAttributeString("spawntype", "");
 
@@ -104,7 +110,7 @@ namespace Barotrauma
             if (spawnDeep)
             {
                 spawnPos.Y -= Level.Loaded.Size.Y;
-                //disable the event if the ocean floor is too high up to spawn the monster deep
+                //disable the event if the ocean floor is too high up to spawn the monster deep 
                 if (spawnPos.Y < Level.Loaded.GetBottomPosition(spawnPos.X).Y)
                 {
                     repeat = false;
@@ -112,12 +118,27 @@ namespace Barotrauma
                     return null;
                 }
             }
-                
+
             for (int i = 0; i < amount; i++)
             {
                 spawnPos.X += Rand.Range(-0.5f, 0.5f, Rand.RandSync.Server);
                 spawnPos.Y += Rand.Range(-0.5f, 0.5f, Rand.RandSync.Server);
                 monsters[i] = Character.Create(characterFile, spawnPos, null, GameMain.Client != null, true, createNetworkEvent);
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    GameSession.inGameInfo.AddNoneClientCharacter(monsters[i]);
+
+                    if (createNetworkEvent && GameMain.NilMod.CreatureLimitRespawns)
+                    {
+                        GameMain.Server.ServerLog.WriteLine("Respawning creature: " + monsters[i].Name + " - respawns used: " + Respawned + " / " + MaxRespawned, Networking.ServerLog.MessageType.Spawns);
+                    }
+                    else if (createNetworkEvent && !GameMain.NilMod.CreatureLimitRespawns)
+                    {
+                        GameMain.Server.ServerLog.WriteLine("Respawning creature: " + monsters[i].Name + " - respawns used: " + Respawned + " / Infinite", Networking.ServerLog.MessageType.Spawns);
+                    }
+                }
+#endif
             }
 
             return monsters;
@@ -131,7 +152,7 @@ namespace Barotrauma
                 return;
             }
             
-            if (repeat)
+            if (repeat && GameMain.NilMod.CreatureRespawnMonsterEvents)
             {
                 //clients aren't allowed to spawn more monsters mid-round
                 if (GameMain.Client != null)
@@ -139,11 +160,15 @@ namespace Barotrauma
                     return;
                 }
 
-                for (int i = 0; i < monsters.Length; i++)
+                if ((GameMain.NilMod.CreatureLimitRespawns && Respawned < MaxRespawned) || !GameMain.NilMod.CreatureLimitRespawns)
                 {
-                    if (monsters[i] == null || monsters[i].Removed || monsters[i].IsDead)
+                    for (int i = 0; i < monsters.Length; i++)
                     {
-                        monsters[i] = SpawnMonsters(1, true)[0];
+                        if (monsters[i] == null || monsters[i].Removed || monsters[i].IsDead)
+                        {
+                            monsters[i] = SpawnMonsters(1, true)[0];
+                            Respawned += 1;
+                        }
                     }
                 }
             }

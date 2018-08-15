@@ -6,17 +6,17 @@ namespace Barotrauma
 {
     public static partial class ToolBox
     {
-        // Convert an RGB value into an HLS value.
+        // Convert an RGB value into an HLS value. 
         public static Vector3 RgbToHLS(this Color color)
         {
             double h, l, s;
 
-            // Convert RGB to a 0.0 to 1.0 range.
+            // Convert RGB to a 0.0 to 1.0 range. 
             double double_r = color.R / 255.0;
             double double_g = color.G / 255.0;
             double double_b = color.B / 255.0;
 
-            // Get the maximum and minimum RGB components.
+            // Get the maximum and minimum RGB components. 
             double max = double_r;
             if (max < double_g) max = double_g;
             if (max < double_b) max = double_b;
@@ -30,7 +30,7 @@ namespace Barotrauma
             if (Math.Abs(diff) < 0.00001)
             {
                 s = 0;
-                h = 0;  // H is really undefined.
+                h = 0;  // H is really undefined. 
             }
             else
             {
@@ -52,7 +52,7 @@ namespace Barotrauma
             return new Vector3((float)h, (float)l, (float)s);
         }
 
-        // Convert an HLS value into an RGB value.
+        // Convert an HLS value into an RGB value. 
         public static Color HLSToRGB(Vector3 hls)
         {
             double h = hls.X, l = hls.Y, s = hls.Z;
@@ -76,7 +76,7 @@ namespace Barotrauma
                 double_b = QqhToRgb(p1, p2, h - 120);
             }
 
-            // Convert RGB to the 0 to 255 range.
+            // Convert RGB to the 0 to 255 range. 
             return new Color((byte)(double_r * 255.0), (byte)(double_g * 255.0), (byte)(double_b * 255.0));
         }
 

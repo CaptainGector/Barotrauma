@@ -18,6 +18,8 @@ namespace Barotrauma
 
         protected Hull currentHull;
 
+        Boolean RagdollDistFar = false;
+
         private Limb[] limbs;
         public Limb[] Limbs
         {
@@ -25,18 +27,47 @@ namespace Barotrauma
             {
                 if (limbs == null)
                 {
-                    DebugConsole.ThrowError("Attempted to access a potentially removed ragdoll. Character: " + character.Name + ", id: " + character.ID + ", removed: " + character.Removed + ", ragdoll removed: " + !list.Contains(this));
-                    GameAnalyticsManager.AddErrorEventOnce(
+                    if(character != null)
+                    {
+                        Character foundcharacter = Character.CharacterList.Find(c => c == character);
+                        List<string> errorLines = new List<string>
+                        {
+                            "Attempted to access a potentially removed ragdoll. Character: " + character.Name
+                            + ", id: " + character.ID
+                            + ", removed: " + character.Removed
+                            + ", finished creation: " + character.FinishedCreation,
+                            "Character list: " + (foundcharacter != null ? "is in list, Ragdoll list: " : "not in list, Ragdoll list: ")
+                            + (list.Contains(this) ? "is in list." : "is not in list."),
+                            "Character info - Speciesname: " + character.SpeciesName
+                            + ", ConfigPath: " + character.ConfigPath
+                            + ", IsDead: " + (character.IsDead ? "Dead, Cause: " + character.CauseOfDeath + "." : "Alive."),
+                            Environment.StackTrace
+                        };
+                        foreach (string line in errorLines)
+                        {
+                            DebugConsole.ThrowError(line);
+                        }
+                        GameAnalyticsManager.AddErrorEventOnce(
                         "Ragdoll.Limbs:AccessRemoved",
                         GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
-                        "Attempted to access a potentially removed ragdoll. Character: " + character.Name + ", id: " + character.ID + ", removed: " + character.Removed + ", ragdoll removed: " + !list.Contains(this) + "\n" + Environment.StackTrace);
+                        string.Join("\n", errorLines));
 
+                        DebugConsole.NewMessage("NILMOD: Attempting removal of broken character to prevent server crash (Clients will likely crash).", Color.Red);
+                        Entity.Spawner.AddToRemoveQueue(character);
+                    }
+                    else
+                    {
+                        DebugConsole.ThrowError("Attempted to access a potentially removed ragdoll. Character reference is null!");
+                        DebugConsole.NewMessage("NILMOD: Attempting removal of broken ragdoll to prevent server crash (Clients will crash).", Color.Red);
+                        this.Remove();
+                    }
+                        
                     return new Limb[0];
                 }
                 return limbs;
             }
         }
-        
+
         private bool frozen;
         public bool Frozen
         {
@@ -48,7 +79,7 @@ namespace Barotrauma
                 frozen = value;
                 
                 Collider.PhysEnabled = !frozen;
-                if (frozen && MainLimb != null) MainLimb.pullJoint.WorldAnchorB = MainLimb.SimPosition;                
+                if (frozen && MainLimb != null) MainLimb.pullJoint.WorldAnchorB = MainLimb.SimPosition;
             }
         }
 
@@ -299,8 +330,8 @@ namespace Barotrauma
             dir = Direction.Right;
 
             float scale = element.GetAttributeFloat("scale", 1.0f);
-            
-            limbs           = new Limb[element.Elements("limb").Count()];
+
+            limbs = new Limb[element.Elements("limb").Count()];
             LimbJoints      = new LimbJoint[element.Elements("joint").Count()];
             limbDictionary  = new Dictionary<LimbType, Limb>();
 
@@ -452,7 +483,7 @@ namespace Barotrauma
 
             Array.Resize(ref limbs, Limbs.Length + 1);
 
-            Limbs[Limbs.Length - 1] = limb;
+            Limbs[Limbs.Length-1] = limb;
 
             Mass += limb.Mass;
             if (!limbDictionary.ContainsKey(limb.type)) limbDictionary.Add(limb.type, limb);
@@ -475,7 +506,7 @@ namespace Barotrauma
             limbs = newLimbs;
             if (limbDictionary.ContainsKey(limb.type)) limbDictionary.Remove(limb.type);
 
-            //remove all joints that were attached to the removed limb
+            //remove all joints that were attached to the removed limb 
             LimbJoint[] attachedJoints = Array.FindAll(LimbJoints, lj => lj.LimbA == limb || lj.LimbB == limb);
             if (attachedJoints.Length > 0)
             {
@@ -497,17 +528,17 @@ namespace Barotrauma
                 GameMain.World.RemoveJoint(limbJoint);
             }
         }
-          
+
         public bool OnLimbCollision(Fixture f1, Fixture f2, Contact contact)
         {
             Structure structure = f2.Body.UserData as Structure;
 
             if (f2.Body.UserData is Submarine && character.Submarine == (Submarine)f2.Body.UserData) return false;
 
-            //only collide with the ragdoll's own blocker
+            //only collide with the ragdoll's own blocker 
             if (f2.Body.UserData as string == "blocker" && f2.Body != outsideCollisionBlocker) return false;
 
-            //always collides with bodies other than structures
+            //always collides with bodies other than structures 
             if (structure == null)
             {
                 CalculateImpact(f1, f2, contact);
@@ -584,7 +615,15 @@ namespace Barotrauma
                 {
                     if (impact > ImpactTolerance)
                     {
-                        character.AddDamage(CauseOfDeath.Damage, impact - ImpactTolerance, null);
+                        float Damage = MathHelper.Clamp((impact - ImpactTolerance) * GameMain.NilMod.ImpactDamageMultiplier,GameMain.NilMod.MinImpactDamage,GameMain.NilMod.MaxImpactDamage);
+                        float BleedDamage = MathHelper.Clamp((impact - ImpactTolerance) * GameMain.NilMod.ImpactBleedMultiplier, GameMain.NilMod.MinImpactBleed, GameMain.NilMod.MaxImpactBleed);
+
+                        if(Damage > 0)
+                        {
+                            character.AddDamage(CauseOfDeath.Damage, impact - ImpactTolerance, null);
+
+                            if (BleedDamage > 0f) character.Bleeding += BleedDamage;
+                        }
 
                         strongestImpact = Math.Max(strongestImpact, impact - ImpactTolerance);
                     }
@@ -785,7 +824,7 @@ namespace Barotrauma
 
                     //find a position 32 units away from the hull
                     Vector2? intersection = MathUtils.GetLineRectangleIntersection(
-                        newHull.WorldPosition, 
+                        newHull.WorldPosition,
                         newHull.WorldPosition + moveDir * Math.Max(newHull.Rect.Width, newHull.Rect.Height),
                         new Rectangle(newHull.WorldRect.X - 32, newHull.WorldRect.Y + 32, newHull.WorldRect.Width + 64, newHull.Rect.Height + 64));
 
@@ -856,7 +895,7 @@ namespace Barotrauma
                 if (!gap.GetOutsideCollider(out Vector2? outsideColliderPos, out Vector2? outsideColliderNormal)) continue;
 
                 outsideCollisionBlocker.SetTransform(
-                    outsideColliderPos.Value - currentHull.Submarine.SimPosition, 
+                    outsideColliderPos.Value - currentHull.Submarine.SimPosition,
                     MathUtils.VectorToAngle(outsideColliderNormal.Value) - MathHelper.PiOver2);
                 outsideCollisionBlocker.Enabled = true;
                 return;
@@ -864,7 +903,7 @@ namespace Barotrauma
 
             outsideCollisionBlocker.Enabled = false;
         }
-        
+
         public void Teleport(Vector2 moveAmount, Vector2 velocityChange)
         {
             foreach (Limb limb in Limbs)
@@ -902,10 +941,10 @@ namespace Barotrauma
             Category collisionCategory = (ignorePlatforms) ?
                 wall | Physics.CollisionProjectile | Physics.CollisionStairs
                 : wall | Physics.CollisionProjectile | Physics.CollisionPlatform | Physics.CollisionStairs;
-            
-            if (collisionCategory == prevCollisionCategory) return;
+
+            if (collisionCategory == prevCollisionCategory && !RagdollDistFar) return;
             prevCollisionCategory = collisionCategory;
-            
+
             Collider.CollidesWith = collisionCategory;
 
             foreach (Limb limb in Limbs)
@@ -921,6 +960,8 @@ namespace Barotrauma
                     DebugConsole.ThrowError("Failed to update ragdoll limb collisioncategories", e);
                 }
             }
+
+            RagdollDistFar = false;
         }
 
         protected bool levitatingCollider = true;
@@ -1166,7 +1207,7 @@ namespace Barotrauma
                         {
                             Collider.LinearVelocity = new Vector2(Collider.LinearVelocity.X, (targetY - Collider.SimPosition.Y) * 5.0f);
                         }
-                    }                
+                    }
                 }
             }
         }
@@ -1229,11 +1270,22 @@ namespace Barotrauma
         {
             if (!MathUtils.IsValid(simPosition))
             {
-                DebugConsole.ThrowError("Attempted to move a ragdoll (" + character.Name + ") to an invalid position (" + simPosition + "). " + Environment.StackTrace);
-                GameAnalyticsManager.AddErrorEventOnce(
+                if (character == null)
+                {
+                    DebugConsole.ThrowError("Attempted to move a ragdoll without a character reference to an invalid position (" + simPosition + "). ");
+                    GameAnalyticsManager.AddErrorEventOnce(
                     "Ragdoll.SetPosition:InvalidPosition",
                     GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
-                    "Attempted to move a ragdoll (" + character.Name + ") to an invalid position (" + simPosition + "). " + Environment.StackTrace);
+                    "Attempted to move a ragdoll without a character reference to an invalid position (" + simPosition + "). " + Environment.StackTrace);
+                }
+                else
+                {
+                    DebugConsole.ThrowError("Attempted to move a ragdoll (" + character.Name + ") to an invalid position (" + simPosition + "). " + Environment.StackTrace);
+                    GameAnalyticsManager.AddErrorEventOnce(
+                        "Ragdoll.SetPosition:InvalidPosition",
+                        GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
+                        "Attempted to move a ragdoll (" + character.Name + ") to an invalid position (" + simPosition + "). " + Environment.StackTrace);
+                }
                 return;
             }
 
@@ -1310,7 +1362,7 @@ namespace Barotrauma
                     if (limb.IsSevered) continue;
                     limb.body.CollidesWith = Physics.CollisionNone;
                 }
-
+                RagdollDistFar = true;
                 collisionsDisabled = true;
             }
             else if (collisionsDisabled)
@@ -1318,8 +1370,6 @@ namespace Barotrauma
                 //set the position of the ragdoll to make sure limbs don't get stuck inside walls when re-enabling collisions
                 SetPosition(Collider.SimPosition, true);
                 collisionsDisabled = false;
-                //force collision categories to be updated
-                prevCollisionCategory = Category.None;
             }
         }
         
@@ -1522,15 +1572,15 @@ namespace Barotrauma
                     float errorMagnitude = positionError.Length();
                     if (errorMagnitude > 0.01f)
                     {
-                        Collider.SetTransform(Collider.SimPosition + positionError, Collider.Rotation + rotationError);   
+                        Collider.SetTransform(Collider.SimPosition + positionError, Collider.Rotation + rotationError);
                         if (errorMagnitude > 0.5f)
                         {
-                            character.MemLocalState.Clear();                 
+                            character.MemLocalState.Clear();
                             foreach (Limb limb in Limbs)
                             {
                                 limb.body.SetTransform(limb.body.SimPosition + positionError, limb.body.Rotation);
                             }
-                        }    
+                        }
                     }
                 }
 
@@ -1641,7 +1691,7 @@ namespace Barotrauma
             {
                 list[i].Remove();
             }
-            System.Diagnostics.Debug.Assert(list.Count == 0, "Some ragdolls were not removed in Ragdoll.RemoveAll");
+            if (list.Count > 0) DebugConsole.ThrowError("Some ragdolls were not removed in Ragdoll.RemoveAll");
         }
     }
 }

@@ -15,6 +15,8 @@ namespace Barotrauma.Items.Components
 {
     partial class Door : Pickable, IDrawableComponent, IServerSerializable
     {
+        public Character LastCharacter;
+
         private Gap linkedGap;
 
         private Rectangle window;
@@ -31,7 +33,25 @@ namespace Barotrauma.Items.Components
         private bool isHorizontal;
 
         private bool isStuck;
-        
+
+        public bool IsStuck
+        {
+            get { return isStuck; }
+            set
+            {
+                if (isStuck == value) return;
+                isStuck = value;
+                if (isStuck)
+                {
+                    Stuck = 100f;
+                }
+                else
+                {
+                    Stuck = 0f;
+                }
+            }
+        }
+
         private bool? predictedState;
         private float resetPredictionTimer;
 
@@ -334,9 +354,9 @@ namespace Barotrauma.Items.Components
                 body.Remove();
                 body = null;
             }
-            
-            //no need to remove the gap if we're unloading the whole submarine
-            //otherwise the gap will be removed twice and cause console warnings
+
+            //no need to remove the gap if we're unloading the whole submarine 
+            //otherwise the gap will be removed twice and cause console warnings 
             if (!Submarine.Unloading)
             {
                 if (linkedGap != null) linkedGap.Remove();
@@ -353,14 +373,6 @@ namespace Barotrauma.Items.Components
 
         private void PushCharactersAway()
         {
-            if (!MathUtils.IsValid(item.SimPosition))
-            {
-                DebugConsole.ThrowError("Failed to push a character out of a doorway - position of the door is not valid (" + item.SimPosition + ")");
-                GameAnalyticsManager.AddErrorEventOnce("PushCharactersAway:DoorPosInvalid", GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
-                      "Failed to push a character out of a doorway - position of the door is not valid (" + item.SimPosition + ").");
-                return;
-            }
-
             //push characters out of the doorway when the door is closing/opening
             Vector2 simPos = ConvertUnits.ToSimUnits(new Vector2(item.Rect.X, item.Rect.Y));
 
@@ -369,6 +381,14 @@ namespace Barotrauma.Items.Components
                 new Vector2(doorSprite.size.X, item.Rect.Height * (1.0f - openState));
 
             Vector2 simSize = ConvertUnits.ToSimUnits(currSize);
+
+            if (!MathUtils.IsValid(item.SimPosition))
+            {
+                DebugConsole.ThrowError("Failed to push a character out of a doorway - position of the door is not valid (" + item.SimPosition + ")");
+                GameAnalyticsManager.AddErrorEventOnce("PushCharactersAway:DoorPosInvalid", GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
+                      "Failed to push a character out of a doorway - position of the door is not valid (" + item.SimPosition + ").");
+                return;
+            }
 
             foreach (Character c in Character.CharacterList)
             {
@@ -383,66 +403,72 @@ namespace Barotrauma.Items.Components
                     continue;
                 }
                 int dir = isHorizontal ? Math.Sign(c.SimPosition.Y - item.SimPosition.Y) : Math.Sign(c.SimPosition.X - item.SimPosition.X);
-
-                List<PhysicsBody> bodies = c.AnimController.Limbs.Select(l => l.body).ToList();
-                bodies.Add(c.AnimController.Collider);
-
-                foreach (PhysicsBody body in bodies)
+                //Nilmod crash prevention
+                if (c?.AnimController?.Limbs != null)
                 {
-                    float diff = 0.0f;
-                    if (!MathUtils.IsValid(body.SimPosition))
-                    {
-                        DebugConsole.ThrowError("Failed to push a limb out of a doorway - position of the body (character \"" + c.Name + "\") is not valid (" + body.SimPosition + ")");
-                        GameAnalyticsManager.AddErrorEventOnce("PushCharactersAway:LimbPosInvalid", GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
-                            "Failed to push a character out of a doorway - position of the character \"" + c.Name + "\" is not valid (" + body.SimPosition + ")." +
-                            " Removed: " + c.Removed +
-                            " Remoteplayer: " + c.IsRemotePlayer);
-                        continue;
-                    }
+                    List<PhysicsBody> bodies = c.AnimController.Limbs.Select(l => l.body).ToList();
+                    bodies.Add(c.AnimController.Collider);
 
-                    if (isHorizontal)
+                    foreach (PhysicsBody body in bodies)
                     {
-                        if (body.SimPosition.X < simPos.X || body.SimPosition.X > simPos.X + simSize.X) continue;
-                        diff = body.SimPosition.Y - item.SimPosition.Y;
-                    }
-                    else
-                    {
-                        if (body.SimPosition.Y > simPos.Y || body.SimPosition.Y < simPos.Y - simSize.Y) continue;
-                        diff = body.SimPosition.X - item.SimPosition.X;
-                    }
-                   
-                    if (Math.Sign(diff) != dir)
-                    {
-#if CLIENT
-                        SoundPlayer.PlayDamageSound("LimbBlunt", 1.0f, body);
-#endif
+                        if (!MathUtils.IsValid(body.SimPosition))
+                        {
+                            DebugConsole.ThrowError("Failed to push a limb out of a doorway - position of the body (character \"" + c.Name + "\") is not valid (" + body.SimPosition + ")");
+                            GameAnalyticsManager.AddErrorEventOnce("PushCharactersAway:LimbPosInvalid", GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
+                                "Failed to push a character out of a doorway - position of the character \"" + c.Name + "\" is not valid (" + body.SimPosition + ")." +
+                                " Removed: " + c.Removed +
+                                " Remoteplayer: " + c.IsRemotePlayer);
+                            continue;
+                        }
+                        float diff = 0.0f;
 
                         if (isHorizontal)
                         {
-                            body.SetTransform(new Vector2(body.SimPosition.X, item.SimPosition.Y + dir * simSize.Y * 2.0f), body.Rotation);
-                            body.ApplyLinearImpulse(new Vector2(isOpen ? 0.0f : 1.0f, dir * 2.0f));
+                            if (body.SimPosition.X < simPos.X || body.SimPosition.X > simPos.X + simSize.X) continue;
+
+                            diff = body.SimPosition.Y - item.SimPosition.Y;
                         }
                         else
                         {
-                            body.SetTransform(new Vector2(item.SimPosition.X + dir * simSize.X * 1.2f, body.SimPosition.Y), body.Rotation);
+                            if (body.SimPosition.Y > simPos.Y || body.SimPosition.Y < simPos.Y - simSize.Y) continue;
+
+                            diff = body.SimPosition.X - item.SimPosition.X;
+                        }
+
+                        if (Math.Sign(diff) != dir)
+                        {
+#if CLIENT
+                            SoundPlayer.PlayDamageSound("LimbBlunt", 1.0f, body);
+#endif
+
+                            if (isHorizontal)
+                            {
+                                body.SetTransform(new Vector2(body.SimPosition.X, item.SimPosition.Y + dir * simSize.Y * 2.0f), body.Rotation);
+                                body.ApplyLinearImpulse(new Vector2(isOpen ? 0.0f : 1.0f, dir * 2.0f));
+                            }
+                            else
+                            {
+                                body.SetTransform(new Vector2(item.SimPosition.X + dir * simSize.X * 1.2f, body.SimPosition.Y), body.Rotation);
+                                body.ApplyLinearImpulse(new Vector2(dir * 0.5f, isOpen ? 0.0f : -1.0f));
+                            }
+                        }
+
+                        if (isHorizontal)
+                        {
+                            if (Math.Abs(body.SimPosition.Y - item.SimPosition.Y) > simSize.Y * 0.5f) continue;
+
+                            body.ApplyLinearImpulse(new Vector2(isOpen ? 0.0f : 1.0f, dir * 0.5f));
+                        }
+                        else
+                        {
+                            if (Math.Abs(body.SimPosition.X - item.SimPosition.X) > simSize.X * 0.5f) continue;
+
                             body.ApplyLinearImpulse(new Vector2(dir * 0.5f, isOpen ? 0.0f : -1.0f));
                         }
+
+                        //c.SetStun(GameMain.NilMod.DoorStun);
+                        c.SetStun(0.2f);
                     }
-
-                    if (isHorizontal)
-                    {
-                        if (Math.Abs(body.SimPosition.Y - item.SimPosition.Y) > simSize.Y * 0.5f) continue;
-
-                        body.ApplyLinearImpulse(new Vector2(isOpen ? 0.0f : 1.0f, dir * 0.5f));
-                    }
-                    else
-                    {
-                        if (Math.Abs(body.SimPosition.X - item.SimPosition.X) > simSize.X * 0.5f) continue;
-
-                        body.ApplyLinearImpulse(new Vector2(dir * 0.5f, isOpen ? 0.0f : -1.0f));
-                    }
-
-                    c.SetStun(0.2f);
                 }
             }
         }
@@ -463,10 +489,77 @@ namespace Barotrauma.Items.Components
             }
 
             bool newState = predictedState == null ? isOpen : predictedState.Value;
-            if (sender != null && wasOpen != newState)
+            if (GameMain.Server != null && sender != null && wasOpen != newState)
             {
-                GameServer.Log(sender.LogName + (newState ? " opened " : " closed ") + item.Name, ServerLog.MessageType.ItemInteraction);
+                if (linkedGap != null && !linkedGap.IsRoomToRoom)
+                {
+                    if (CoroutineManager.IsCoroutineRunning("WarnAirlockLeftOpen_" + item.ID)) CoroutineManager.StopCoroutines("WarnAirlockLeftOpen_" + item.ID);
+
+                    //This is on a respawn shuttle
+                    if (GameMain.Server.RespawnManager != null && GameMain.Server.RespawnManager.Submarine != null
+                        && item.Submarine == GameMain.Server.RespawnManager.Submarine)
+                    {
+                        GameServer.Log(sender.LogName + (newState ? " opened respawn shuttle exterior " : " closed respawn shuttle exterior ") + item.Name, ServerLog.MessageType.ItemInteraction);
+
+                        if (GameMain.NilMod.EnableGriefWatcher && newState)
+                        {
+                            Barotrauma.Networking.Client warnedclient = GameMain.Server.ConnectedClients.Find(c => c.Character == sender);
+
+                            CoroutineManager.StartCoroutine(WarnAirlockLeftOpen(warnedclient, this, true), "WarnAirlockLeftOpen_" + item.ID);
+                        }
+                    }
+                    //This is a regular shuttle or submarine
+                    else if (item.Submarine != null)
+                    {
+                        GameServer.Log(sender.LogName + (newState ? " opened " + item.Submarine.Name + " exterior " : " closed " + item.Submarine.Name + " exterior ") + item.Name, ServerLog.MessageType.ItemInteraction);
+
+                        if (GameMain.NilMod.EnableGriefWatcher && newState)
+                        {
+                            Barotrauma.Networking.Client warnedclient = GameMain.Server.ConnectedClients.Find(c => c.Character == sender);
+
+                            CoroutineManager.StartCoroutine(WarnAirlockLeftOpen(warnedclient, this, false), "WarnAirlockLeftOpen_" + item.ID);
+                        }
+                    }
+                }
+                else
+                {
+                    //This is on a respawn shuttle
+                    if (GameMain.Server.RespawnManager != null && GameMain.Server.RespawnManager.Submarine != null
+                        && item.Submarine == GameMain.Server.RespawnManager.Submarine)
+                    {
+                        GameServer.Log(sender.LogName + (newState ? " opened respawn shuttle interior " : " closed respawn shuttle interior ") + item.Name, ServerLog.MessageType.ItemInteraction);
+                    }
+                    //This is a regular shuttle or submarine
+                    else if(item.Submarine != null)
+                    {
+                        GameServer.Log(sender.LogName + (newState ? " opened " + item.Submarine.Name + " interior " : " closed " + item.Submarine.Name + " interior ") + item.Name, ServerLog.MessageType.ItemInteraction);
+                    }
+                }
             }
+        }
+
+        public static IEnumerable<Object> WarnAirlockLeftOpen(Client c, Door door, Boolean isRespawn)
+        {
+            float timer = NilMod.NilModGriefWatcher.AirlockLeftOpenTimer;
+            if (isRespawn) timer = timer * NilMod.NilModGriefWatcher.AirlockLeftOpenRespawnMult;
+            float basetimer = timer;
+
+            while (timer >= 0f)
+            {
+                timer -= CoroutineManager.DeltaTime;
+                if(!door.isOpen) yield return CoroutineStatus.Success;
+                yield return CoroutineStatus.Running;
+            }
+
+            if (NilMod.NilModGriefWatcher.AirlockLeftOpen)
+            {
+                if (!isRespawn) NilMod.NilModGriefWatcher.SendWarning((c != null ? c.Character.LogName : c.Name)
+                     + " left airlock door open named: " + door.item.Name + " for over " + Math.Round(basetimer, 1) + " seconds", c);
+                else NilMod.NilModGriefWatcher.SendWarning((c != null ? c.Character.LogName : c.Name)
+                    + " left respawn airlock door open named: " + door.item.Name + " for over " + Math.Round(basetimer, 1) + " seconds", c);
+            }
+
+            yield return CoroutineStatus.Success;
         }
 
         public void SetState(bool open, bool isNetworkMessage, bool sendNetworkMessage = false)

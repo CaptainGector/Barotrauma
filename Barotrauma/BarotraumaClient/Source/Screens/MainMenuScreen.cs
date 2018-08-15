@@ -124,6 +124,17 @@ namespace Barotrauma
             GUIButton hostButton = new GUIButton(new Rectangle(0, 0, 100, 30), TextManager.Get("StartServerButton"), Alignment.BottomRight, "", menuTabs[(int)Tab.HostServer]);
             hostButton.OnClicked = HostServerClicked;
 
+            if (GameMain.NilMod.OverrideServerSettings)
+            {
+                serverNameBox.Text = GameMain.NilMod.ServerName;
+                portBox.Text = GameMain.NilMod.ServerPort.ToString();
+                maxPlayersBox.Text = GameMain.NilMod.MaxPlayers.ToString();
+                if (GameMain.NilMod.PublicServer) isPublicBox.Selected = true;
+                if (GameMain.NilMod.UPNPForwarding) useUpnpBox.Selected = true;
+
+                if (GameMain.NilMod.UseServerPassword) passwordBox.Text = GameMain.NilMod.ServerPassword;
+            }
+
             this.game = game;
         }
 
@@ -335,11 +346,10 @@ namespace Barotrauma
             if (selectedTab>0) menuTabs[(int)selectedTab].Draw(spriteBatch);
 
             GUI.Draw((float)deltaTime, spriteBatch, null);
-
 #if DEBUG
-            GUI.Font.DrawString(spriteBatch, "Barotrauma v" + GameMain.Version + " (debug build)", new Vector2(10, GameMain.GraphicsHeight - 20), Color.White);
+            GUI.Font.DrawString(spriteBatch, "Barotrauma v" + GameMain.Version + " Nilmod v: " + NilMod.NilModVersionDate + " (debug build)", new Vector2(10, GameMain.GraphicsHeight - 20), Color.White);
 #else
-            GUI.Font.DrawString(spriteBatch, "Barotrauma v" + GameMain.Version, new Vector2(10, GameMain.GraphicsHeight - 20), Color.White);
+            GUI.Font.DrawString(spriteBatch, "Barotrauma v" + GameMain.Version + " Nilmod v: " + NilMod.NilModVersionDate, new Vector2(10, GameMain.GraphicsHeight - 20), Color.White);
 #endif
 
             spriteBatch.End();
@@ -387,6 +397,10 @@ namespace Barotrauma
             GameMain.GameSession = new GameSession(selectedSub, saveName, GameModePreset.list.Find(gm => gm.Name == "Single Player"));
             (GameMain.GameSession.GameMode as CampaignMode).GenerateMap(mapSeed);
 
+            GameSession.inGameInfo.Initialize();
+
+            GameMain.NilMod.GameInitialize(true);
+
             GameMain.LobbyScreen.Select();
         }
         
@@ -404,6 +418,7 @@ namespace Barotrauma
                 return;
             }
 
+            GameSession.inGameInfo.Initialize();
 
             GameMain.LobbyScreen.Select();
         }

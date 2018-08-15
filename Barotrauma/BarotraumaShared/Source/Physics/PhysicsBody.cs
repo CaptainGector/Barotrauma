@@ -184,16 +184,11 @@ namespace Barotrauma
                 }
                 catch (Exception e)
                 {
-                    DebugConsole.ThrowError("Exception in PhysicsBody.Enabled = " + value + " (" + isPhysEnabled + ")", e);
-                    if (UserData != null) DebugConsole.NewMessage("PhysicsBody UserData: " + UserData.GetType().ToString(), Color.Red);
+                    DebugConsole.ThrowError("Exception in PhysicsBody.Enabled = "+value+" ("+isPhysEnabled+")",e);
+                    if (UserData!=null) DebugConsole.NewMessage("PhysicsBody UserData: "+UserData.GetType().ToString(), Color.Red);
                     if (GameMain.World.ContactManager == null) DebugConsole.NewMessage("ContactManager is null!", Color.Red);
                     else if (GameMain.World.ContactManager.BroadPhase == null) DebugConsole.NewMessage("Broadphase is null!", Color.Red);
                     if (body.FixtureList == null) DebugConsole.NewMessage("FixtureList is null!", Color.Red);
-
-                    if (UserData is Entity entity)
-                    {
-                        DebugConsole.NewMessage("Entity \"" + entity.ToString() + "\" removed!", Color.Red);
-                    }
                 }
             }
         }
@@ -384,7 +379,7 @@ namespace Barotrauma
                     " to a physics body (userdata: " + userData +
                     "), value: " + value + "\n" + Environment.StackTrace;
 
-                if (GameSettings.VerboseLogging) DebugConsole.ThrowError(errorMsg);
+                if (GameSettings.VerboseLogging) DebugConsole.NewMessage(errorMsg, Color.Red);
                 GameAnalyticsManager.AddErrorEventOnce(
                     "PhysicsBody.SetPosition:InvalidPosition" + userData,
                     GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
@@ -406,7 +401,7 @@ namespace Barotrauma
                     " to a physics body (userdata: " + userData +
                     "), value: " + value + "\n" + Environment.StackTrace;
 
-                if (GameSettings.VerboseLogging) DebugConsole.ThrowError(errorMsg);
+                if (GameSettings.VerboseLogging) DebugConsole.NewMessage(errorMsg,Color.Red);
                 GameAnalyticsManager.AddErrorEventOnce(
                     "PhysicsBody.SetPosition:InvalidPosition" + userData,
                     GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
@@ -427,9 +422,9 @@ namespace Barotrauma
             body.ApplyLinearImpulse(impulse);
         }
 
-        /// <summary>
-        /// Apply an impulse to the body without increasing it's velocity above a specific limit.
-        /// </summary>
+        /// <summary> 
+        /// Apply an impulse to the body without increasing it's velocity above a specific limit. 
+        /// </summary> 
         public void ApplyLinearImpulse(Vector2 impulse, float maxVelocity)
         {
             if (!IsValidValue(impulse, "impulse", -1e10f, 1e10f)) return;

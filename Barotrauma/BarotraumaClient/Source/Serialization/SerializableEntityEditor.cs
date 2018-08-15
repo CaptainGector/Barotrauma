@@ -288,7 +288,7 @@ namespace Barotrauma
             return label;
         }
 
-        // TODO: DRY, auto positioning
+        // TODO: DRY, auto positioning 
         private GUIComponent CreateVector3Field(ISerializableEntity entity, SerializableProperty property, Vector3 value, int yPos, GUIComponent parent)
         {
             var label = new GUITextBlock(new Rectangle(0, yPos, 0, 18), property.Name, "", Alignment.TopLeft, Alignment.Left, parent, false, GUI.SmallFont);

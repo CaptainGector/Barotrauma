@@ -245,7 +245,7 @@ namespace Voronoi2
             return "GraphEdge (" + point1.ToString() + ", " + point2.ToString() + ")";
         }
     }
-    
+
     // للترتيب
     public class SiteSorterYX : IComparer<Site>
     {

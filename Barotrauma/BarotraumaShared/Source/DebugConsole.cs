@@ -34,7 +34,7 @@ namespace Barotrauma
         {
             public readonly string[] names;
             public readonly string help;
-            
+            public readonly CommandType Type;
             private Action<string[]> onExecute;
 
             /// <summary>
@@ -72,6 +72,19 @@ namespace Barotrauma
             }
             
 
+            public Command(string name, CommandType type, string help, Action<string[]> onExecute, Action<string[]> onClientExecute, Action<Client, Vector2, string[]> onClientRequestExecute, Func<string[][]> getValidArgs = null)
+            {
+                names = name.Split('|');
+                this.help = help;
+                this.Type = type;
+
+                this.onExecute = onExecute;
+                this.onClientExecute = onClientExecute;
+                this.onClientRequestExecute = onClientRequestExecute;
+
+                this.GetValidArgs = getValidArgs;
+            }
+
             /// <summary>
             /// Use this constructor to create a command that executes the same action regardless of whether it's executed by a client or the server.
             /// </summary>
@@ -79,6 +92,21 @@ namespace Barotrauma
             {
                 names = name.Split('|');
                 this.help = help;
+
+                this.onExecute = onExecute;
+                this.onClientExecute = onExecute;
+
+                this.GetValidArgs = getValidArgs;
+            }
+
+            /// <summary>
+            /// Use this constructor to create a command that executes the same action regardless of whether it's executed by a client or the server.
+            /// </summary>
+            public Command(string name, CommandType type, string help, Action<string[]> onExecute, Func<string[][]> getValidArgs = null)
+            {
+                names = name.Split('|');
+                this.help = help;
+                this.Type = type;
 
                 this.onExecute = onExecute;
                 this.onClientExecute = onExecute;
@@ -111,7 +139,20 @@ namespace Barotrauma
             }
         }
 
-        const int MaxMessages = 200;
+        public enum CommandType
+        {
+            Generic,
+            Spawning,
+            Render,
+            Debug,
+            DebugHide,  //To Hide commands when not in DEBUG mode
+            GamePower,
+            Character,
+            Network,
+            ClientOnly
+        }
+
+        const int MaxMessages = 600;
 
         public static List<ColoredText> Messages = new List<ColoredText>();
 
@@ -136,11 +177,108 @@ namespace Barotrauma
 
         static DebugConsole()
         {
-            commands.Add(new Command("help", "", (string[] args) =>
+            commands.Add(new Command("help", CommandType.Generic, "", (string[] args) =>
             {
                 if (args.Length == 0)
                 {
+                    List<Command> matchingCommands;
+                    /*
                     foreach (Command c in commands)
+                    {
+                        if (string.IsNullOrEmpty(c.help)) continue;
+                        NewMessage(c.help, Color.Cyan);
+                    }
+                    */
+
+                    //Generic Commands list
+                    matchingCommands = commands.FindAll(cmd => (cmd.Type == CommandType.Generic));
+
+                    NewMessage("**********************************************", Color.Cyan);
+                    NewMessage("*                             Generic                              *", Color.Cyan);
+                    NewMessage("**********************************************", Color.Cyan);
+
+                    foreach (Command c in matchingCommands)
+                    {
+                        if (string.IsNullOrEmpty(c.help)) continue;
+                        NewMessage(c.help, Color.Cyan);
+                    }
+
+                    //Debug & DebugHide Commands list
+#if DEBUG
+                    matchingCommands = commands.FindAll(cmd => (cmd.Type == CommandType.Debug | cmd.Type == CommandType.DebugHide));
+#else
+                    matchingCommands = commands.FindAll(cmd => (cmd.Type == CommandType.Debug));
+#endif
+                    NewMessage("**********************************************", Color.Cyan);
+                    NewMessage("*                              Debug                               *", Color.Cyan);
+                    NewMessage("**********************************************", Color.Cyan);
+
+                    foreach (Command c in matchingCommands)
+                    {
+                        if (string.IsNullOrEmpty(c.help)) continue;
+                        NewMessage(c.help, Color.Cyan);
+                    }
+
+                    //Render Commands list
+                    matchingCommands = commands.FindAll(cmd => (cmd.Type == CommandType.Render));
+
+                    NewMessage("**********************************************", Color.Cyan);
+                    NewMessage("*                              Render                              *", Color.Cyan);
+                    NewMessage("**********************************************", Color.Cyan);
+
+                    foreach (Command c in matchingCommands)
+                    {
+                        if (string.IsNullOrEmpty(c.help)) continue;
+                        NewMessage(c.help, Color.Cyan);
+                    }
+
+                    //Network Commands list
+                    matchingCommands = commands.FindAll(cmd => (cmd.Type == CommandType.Network));
+
+                    NewMessage("**********************************************", Color.Cyan);
+                    NewMessage("*                             Network                             *", Color.Cyan);
+                    NewMessage("**********************************************", Color.Cyan);
+
+                    foreach (Command c in matchingCommands)
+                    {
+                        if (string.IsNullOrEmpty(c.help)) continue;
+                        NewMessage(c.help, Color.Cyan);
+                    }
+
+                    //GamePower Commands list
+                    matchingCommands = commands.FindAll(cmd => (cmd.Type == CommandType.GamePower));
+
+                    NewMessage("**********************************************", Color.Cyan);
+                    NewMessage("*                        Game Powers                        *", Color.Cyan);
+                    NewMessage("**********************************************", Color.Cyan);
+
+                    foreach (Command c in matchingCommands)
+                    {
+                        if (string.IsNullOrEmpty(c.help)) continue;
+                        NewMessage(c.help, Color.Cyan);
+                    }
+
+                    //Character Commands list
+                    matchingCommands = commands.FindAll(cmd => (cmd.Type == CommandType.Character));
+
+                    NewMessage("**********************************************", Color.Cyan);
+                    NewMessage("*                            Character                            *", Color.Cyan);
+                    NewMessage("**********************************************", Color.Cyan);
+
+                    foreach (Command c in matchingCommands)
+                    {
+                        if (string.IsNullOrEmpty(c.help)) continue;
+                        NewMessage(c.help, Color.Cyan);
+                    }
+
+                    //Character Commands list
+                    matchingCommands = commands.FindAll(cmd => (cmd.Type == CommandType.Spawning));
+
+                    NewMessage("**********************************************", Color.Cyan);
+                    NewMessage("*                              Spawns                             *", Color.Cyan);
+                    NewMessage("**********************************************", Color.Cyan);
+
+                    foreach (Command c in matchingCommands)
                     {
                         if (string.IsNullOrEmpty(c.help)) continue;
                         NewMessage(c.help, Color.Cyan);
@@ -160,7 +298,7 @@ namespace Barotrauma
                 }
             }));
 
-            commands.Add(new Command("clientlist", "clientlist: List all the clients connected to the server.", (string[] args) =>
+            commands.Add(new Command("clientlist", CommandType.Network, "clientlist: List all the clients connected to the server.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
                 NewMessage("***************", Color.Cyan);
@@ -180,6 +318,7 @@ namespace Barotrauma
                 GameMain.Server.SendConsoleMessage("***************", client);
             }));
 
+            /*
             commands.Add(new Command("traitorlist", "traitorlist: List all the traitors and their targets.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
@@ -190,18 +329,19 @@ namespace Barotrauma
                     NewMessage("- Traitor " + t.Character.Name + "'s target is " + t.TargetCharacter.Name + ".", Color.Cyan);
                 }
                 NewMessage("The code words are: " + traitorManager.codeWords + ", response: " + traitorManager.codeResponse + ".", Color.Cyan);
-            },
-            null,
-            (Client client, Vector2 cursorPos, string[] args) =>
-            {
-                TraitorManager traitorManager = GameMain.Server.TraitorManager;
-                if (traitorManager == null) return;
-                foreach (Traitor t in traitorManager.TraitorList)
-                {
-                    GameMain.Server.SendConsoleMessage("- Traitor " + t.Character.Name + "'s target is " + t.TargetCharacter.Name + ".", client);
-                }
-                GameMain.Server.SendConsoleMessage("The code words are: " + traitorManager.codeWords + ", response: " + traitorManager.codeResponse + ".", client);
+            }, 
+            null, 
+            (Client client, Vector2 cursorPos, string[] args) => 
+            { 
+                TraitorManager traitorManager = GameMain.Server.TraitorManager; 
+                if (traitorManager == null) return; 
+                foreach (Traitor t in traitorManager.TraitorList) 
+                { 
+                    GameMain.Server.SendConsoleMessage("- Traitor " + t.Character.Name + "'s target is " + t.TargetCharacter.Name + ".", client); 
+                } 
+                GameMain.Server.SendConsoleMessage("The code words are: " + traitorManager.codeWords + ", response: " + traitorManager.codeResponse + ".", client); 
             }));
+            */
 
             commands.Add(new Command("itemlist", "itemlist: List all the item prefabs available for spawning.", (string[] args) =>
             {
@@ -221,12 +361,12 @@ namespace Barotrauma
                 GameMain.Server.SetPassword(args[0]);
             }));
 
-            commands.Add(new Command("createfilelist", "", (string[] args) =>
+            commands.Add(new Command("createfilelist", CommandType.Debug, "", (string[] args) =>
             {
                 UpdaterUtil.SaveFileList("filelist.xml");
             }));
 
-            commands.Add(new Command("spawn|spawncharacter", "spawn [creaturename] [near/inside/outside/cursor]: Spawn a creature at a random spawnpoint (use the second parameter to only select spawnpoints near/inside/outside the submarine).", (string[] args) =>
+            commands.Add(new Command("spawn|spawncharacter", CommandType.Spawning, "spawn [creaturename] [near/inside/outside/cursor]: Spawn a creature at a random spawnpoint (use the second parameter to only select spawnpoints near/inside/outside the submarine).", (string[] args) =>
             {
                 string errorMsg;
                 SpawnCharacter(args, GameMain.GameScreen.Cam.ScreenToWorld(PlayerInput.MousePosition), out errorMsg);
@@ -260,10 +400,10 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("spawnitem", "spawnitem [itemname] [cursor/inventory/cargo/random/[name]]: Spawn an item at the position of the cursor, in the inventory of the controlled character, in the inventory of the client with the given name, or at a random spawnpoint if the last parameter is omitted or \"random\".",
+            commands.Add(new Command("spawnitem",CommandType.Spawning, "spawnitem [itemname] [cursor/inventory/random/[name]]: Spawn an item at the position of the cursor, in the inventory of the controlled character, in the inventory of the client with the given name, or at a random spawnpoint if the last parameter is omitted or \"random\".",
             (string[] args) =>
             {
-                SpawnItem(args, GameMain.GameScreen.Cam.ScreenToWorld(PlayerInput.MousePosition), Character.Controlled, out string errorMsg);
+                SpawnItem(args, GameMain.GameScreen.Cam.ScreenToWorld(PlayerInput.MousePosition), (Character.Spied != null ? Character.Spied : Character.Controlled), out string errorMsg);
                 if (!string.IsNullOrWhiteSpace(errorMsg))
                 {
                     ThrowError(errorMsg);
@@ -272,7 +412,7 @@ namespace Barotrauma
             null,
             (Client client, Vector2 cursorWorldPos, string[] args) =>
             {
-                SpawnItem(args, cursorWorldPos, client.Character, out string errorMsg);
+                SpawnItem(args, cursorWorldPos, (client.Spied != null ? client.Spied : client.Character), out string errorMsg);
                 if (!string.IsNullOrWhiteSpace(errorMsg))
                 {
                     GameMain.Server.SendConsoleMessage(errorMsg, client);
@@ -293,11 +433,17 @@ namespace Barotrauma
                 };
             }));
 
-
-            commands.Add(new Command("disablecrewai", "disablecrewai: Disable the AI of the NPCs in the crew.", (string[] args) =>
+            commands.Add(new Command("disablecrewai", CommandType.Debug, "disablecrewai: Disable the AI of the NPCs in the crew.", (string[] args) =>
             {
                 HumanAIController.DisableCrewAI = true;
                 NewMessage("Crew AI disabled", Color.White);
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    GameMain.Server.ToggleCrewAIButton.Text = "CrewAI: On";
+                    GameMain.Server.ToggleCrewAIButton.ToolTip = "Turns the AI Crews AI On.";
+                }
+#endif
             },
             null,
             (Client client, Vector2 cursorWorldPos, string[] args) =>
@@ -307,10 +453,17 @@ namespace Barotrauma
                 GameMain.Server.SendConsoleMessage("Crew AI disabled", client);
             }));
 
-            commands.Add(new Command("enablecrewai", "enablecrewai: Enable the AI of the NPCs in the crew.", (string[] args) =>
+            commands.Add(new Command("enablecrewai", CommandType.Debug, "enablecrewai: Enable the AI of the NPCs in the crew.", (string[] args) =>
             {
                 HumanAIController.DisableCrewAI = false;
                 NewMessage("Crew AI enabled", Color.White);
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    GameMain.Server.ToggleCrewAIButton.Text = "CrewAI: Off";
+                    GameMain.Server.ToggleCrewAIButton.ToolTip = "Turns the AI Crews AI Off.";
+                }
+#endif
             }, 
             null, 
             (Client client, Vector2 cursorWorldPos, string[] args) =>
@@ -320,7 +473,7 @@ namespace Barotrauma
                 GameMain.Server.SendConsoleMessage("Crew AI enabled", client);
             }));
 
-            commands.Add(new Command("autorestart", "autorestart [true/false]: Enable or disable round auto-restart.", (string[] args) =>
+            commands.Add(new Command("autorestart", CommandType.Network, "autorestart [true/false]: Enable or disable round auto-restart.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
                 bool enabled = GameMain.Server.AutoRestart;
@@ -345,7 +498,7 @@ namespace Barotrauma
                 NewMessage(GameMain.Server.AutoRestart ? "Automatic restart enabled." : "Automatic restart disabled.", Color.White);
             }, null, null));
             
-            commands.Add(new Command("autorestartinterval", "autorestartinterval [seconds]: Set how long the server waits between rounds before automatically starting a new one. If set to 0, autorestart is disabled.", (string[] args) =>
+            commands.Add(new Command("autorestartinterval", CommandType.Network, "autorestartinterval [seconds]: Set how long the server waits between rounds before automatically starting a new one. If set to 0, autorestart is disabled.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
                 if (args.Length > 0)
@@ -373,7 +526,7 @@ namespace Barotrauma
                 }
             }, null, null));
             
-            commands.Add(new Command("autorestarttimer", "autorestarttimer [seconds]: Set the current autorestart countdown to the specified value.", (string[] args) =>
+            commands.Add(new Command("autorestarttimer", CommandType.Network, "autorestarttimer [seconds]: Set the current autorestart countdown to the specified value.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
                 if (args.Length > 0)
@@ -402,7 +555,7 @@ namespace Barotrauma
                 }
             }, null, null));
             
-            commands.Add(new Command("giveperm", "giveperm [id]: Grants administrative permissions to the player with the specified client ID.", (string[] args) =>
+            commands.Add(new Command("giveperm", CommandType.Network, "giveperm [id]: Grants administrative permissions to the player with the specified client ID.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
                 if (args.Length < 1)
@@ -411,8 +564,7 @@ namespace Barotrauma
                     return;
                 }
 
-                int id;
-                int.TryParse(args[0], out id);
+                int.TryParse(args[0], out int id);
                 var client = GameMain.Server.ConnectedClients.Find(c => c.ID == id);
                 if (client == null)
                 {
@@ -475,8 +627,7 @@ namespace Barotrauma
             {
                 if (args.Length < 2) return;
 
-                int id;
-                int.TryParse(args[0], out id);
+                int.TryParse(args[0], out int id);
                 var client = GameMain.Server.ConnectedClients.Find(c => c.ID == id);
                 if (client == null)
                 {
@@ -506,7 +657,7 @@ namespace Barotrauma
                 NewMessage(senderClient.Name + " granted " + perm + " permissions to " + client.Name + ".", Color.White);
             }));
 
-            commands.Add(new Command("revokeperm", "revokeperm [id]: Revokes administrative permissions to the player with the specified client ID.", (string[] args) =>
+            commands.Add(new Command("revokeperm", CommandType.Network, "revokeperm [id]: Revokes administrative permissions to the player with the specified client ID.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
                 if (args.Length < 1)
@@ -515,8 +666,7 @@ namespace Barotrauma
                     return;
                 }
 
-                int id;
-                int.TryParse(args[0], out id);
+                int.TryParse(args[0], out int id);
                 var client = GameMain.Server.ConnectedClients.Find(c => c.ID == id);
                 if (client == null)
                 {
@@ -580,8 +730,7 @@ namespace Barotrauma
             {
                 if (args.Length < 2) return;
 
-                int id;
-                int.TryParse(args[0], out id);
+                int.TryParse(args[0], out int id);
                 var client = GameMain.Server.ConnectedClients.Find(c => c.ID == id);
                 if (client == null)
                 {
@@ -611,8 +760,7 @@ namespace Barotrauma
                 NewMessage(senderClient.Name + " revoked " + perm + " permissions from " + client.Name + ".", Color.White);
             }));
 
-
-            commands.Add(new Command("giverank", "giverank [id]: Assigns a specific rank (= a set of administrative permissions) to the player with the specified client ID.", (string[] args) =>
+            commands.Add(new Command("giverank", CommandType.Network, "giverank [id]: Assigns a specific rank (= a set of administrative permissions) to the player with the specified client ID.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
                 if (args.Length < 1)
@@ -621,15 +769,14 @@ namespace Barotrauma
                     return;
                 }
 
-                int id;
-                int.TryParse(args[0], out id);
+                int.TryParse(args[0], out int id);
                 var client = GameMain.Server.ConnectedClients.Find(c => c.ID == id);
                 if (client == null)
                 {
                     ThrowError("Client id \"" + id + "\" not found.");
                     return;
                 }
-                
+
                 NewMessage("Valid ranks are:", Color.White);
                 foreach (PermissionPreset permissionPreset in PermissionPreset.List)
                 {
@@ -677,8 +824,7 @@ namespace Barotrauma
             {
                 if (args.Length < 2) return;
 
-                int id;
-                int.TryParse(args[0], out id);
+                int.TryParse(args[0], out int id);
                 var client = GameMain.Server.ConnectedClients.Find(c => c.ID == id);
                 if (client == null)
                 {
@@ -699,8 +845,8 @@ namespace Barotrauma
                 GameMain.Server.SendConsoleMessage("Assigned the rank \"" + preset.Name + "\" to " + client.Name + ".", senderClient);
                 NewMessage(senderClient.Name + " granted  the rank \"" + preset.Name + "\" to " + client.Name + ".", Color.White);
             }));
-            
-            commands.Add(new Command("givecommandperm", "givecommandperm [id]: Gives the player with the specified client ID the permission to use the specified console commands.", (string[] args) =>
+
+            commands.Add(new Command("givecommandperm", CommandType.Network, "givecommandperm [id]: Gives the player with the specified client ID the permission to use the specified console commands.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
                 if (args.Length < 1)
@@ -709,8 +855,7 @@ namespace Barotrauma
                     return;
                 }
 
-                int id;
-                int.TryParse(args[0], out id);
+                int.TryParse(args[0], out int id);
                 var client = GameMain.Server.ConnectedClients.Find(c => c.ID == id);
                 if (client == null)
                 {
@@ -753,7 +898,7 @@ namespace Barotrauma
                     ThrowError("\"" + id + "\" is not a valid client ID.");
                     return;
                 }
-                
+
                 ShowQuestionPrompt("Console command permissions to grant to client #" + id + "? You may enter multiple commands separated with a space.", (commandNames) =>
                 {
                     GameMain.Client.SendConsoleCommand("givecommandperm " + id + " " + commandNames);
@@ -764,8 +909,7 @@ namespace Barotrauma
             {
                 if (args.Length < 2) return;
 
-                int id;
-                int.TryParse(args[0], out id);
+                int.TryParse(args[0], out int id);
                 var client = GameMain.Server.ConnectedClients.Find(c => c.ID == id);
                 if (client == null)
                 {
@@ -797,7 +941,7 @@ namespace Barotrauma
             }));
 
 
-            commands.Add(new Command("revokecommandperm", "revokecommandperm [id]: Revokes permission to use the specified console commands from the player with the specified client ID.", (string[] args) =>
+            commands.Add(new Command("revokecommandperm", CommandType.Network, "revokecommandperm [id]: Revokes permission to use the specified console commands from the player with the specified client ID.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
                 if (args.Length < 1)
@@ -806,8 +950,7 @@ namespace Barotrauma
                     return;
                 }
 
-                int id;
-                int.TryParse(args[0], out id);
+                int.TryParse(args[0], out int id);
                 var client = GameMain.Server.ConnectedClients.Find(c => c.ID == id);
                 if (client == null)
                 {
@@ -892,7 +1035,7 @@ namespace Barotrauma
             }));
 
 
-            commands.Add(new Command("showperm", "showperm [id]: Shows the current administrative permissions of the client with the specified client ID.", (string[] args) =>
+            commands.Add(new Command("showperm", CommandType.Network, "showperm [id]: Shows the current administrative permissions of the client with the specified client ID.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
                 if (args.Length < 1)
@@ -950,16 +1093,15 @@ namespace Barotrauma
                     ThrowError("\"" + id + "\" is not a valid client ID.");
                     return;
                 }
-                
-                GameMain.Client.SendConsoleCommand("showperm " + id);                
+
+                GameMain.Client.SendConsoleCommand("showperm " + id);
 #endif
             },
             (Client senderClient, Vector2 cursorWorldPos, string[] args) =>
             {
                 if (args.Length < 2) return;
 
-                int id;
-                int.TryParse(args[0], out id);
+                int.TryParse(args[0], out int id);
                 var client = GameMain.Server.ConnectedClients.Find(c => c.ID == id);
                 if (client == null)
                 {
@@ -998,14 +1140,14 @@ namespace Barotrauma
                 }
             }));
 
-            commands.Add(new Command("togglekarma", "togglekarma: Toggles the karma system.", (string[] args) =>
+            commands.Add(new Command("togglekarma", CommandType.Network, "togglekarma: Toggles the karma system.", (string[] args) =>
             {
                 throw new NotImplementedException();
                 if (GameMain.Server == null) return;
                 GameMain.Server.KarmaEnabled = !GameMain.Server.KarmaEnabled;
             }));
 
-            commands.Add(new Command("kick", "kick [name]: Kick a player out of the server.", (string[] args) =>
+            commands.Add(new Command("kick", CommandType.Network, "kick [name]: Kick a player out of the server.", (string[] args) =>
             {
                 if (GameMain.NetworkMember == null || args.Length == 0) return;
                 
@@ -1013,7 +1155,7 @@ namespace Barotrauma
 
                 ShowQuestionPrompt("Reason for kicking \"" + playerName + "\"?", (reason) =>
                 {
-                    GameMain.NetworkMember.KickPlayer(playerName, reason);
+                    GameMain.NetworkMember.KickPlayer(playerName, reason, GameMain.NilMod.AdminKickStateNameTimer, GameMain.NilMod.AdminKickDenyRejoinTimer);
                 });                
             },
             () =>
@@ -1026,7 +1168,7 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("kickid", "kickid [id]: Kick the player with the specified client ID out of the server.", (string[] args) =>
+            commands.Add(new Command("kickid", CommandType.Network, "kickid [id]: Kick the player with the specified client ID out of the server.", (string[] args) =>
             {
                 if (GameMain.NetworkMember == null || args.Length == 0) return;
 
@@ -1040,11 +1182,18 @@ namespace Barotrauma
 
                 ShowQuestionPrompt("Reason for kicking \"" + client.Name + "\"?", (reason) =>
                 {
-                    GameMain.NetworkMember.KickPlayer(client.Name, reason);                    
+                    if(GameMain.Server != null)
+                    {
+                        GameMain.Server.KickPlayer(client.Name, reason, GameMain.NilMod.AdminKickStateNameTimer, GameMain.NilMod.AdminKickDenyRejoinTimer);
+                    }
+                    else if(GameMain.Client != null)
+                    {
+                        GameMain.Client.KickPlayer(client.Name, reason);
+                    }
                 });
             }));
 
-            commands.Add(new Command("ban", "ban [name]: Kick and ban the player from the server.", (string[] args) =>
+            commands.Add(new Command("ban", CommandType.Network, "ban [name]: Kick and ban the player from the server.", (string[] args) =>
             {
                 if (GameMain.NetworkMember == null || args.Length == 0) return;
                 
@@ -1079,7 +1228,7 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("banid", "banid [id]: Kick and ban the player with the specified client ID from the server.", (string[] args) =>
+            commands.Add(new Command("banid", CommandType.Network, "banid [id]: Kick and ban the player with the specified client ID from the server.", (string[] args) =>
             {
                 if (GameMain.NetworkMember == null || args.Length == 0) return;
 
@@ -1090,7 +1239,7 @@ namespace Barotrauma
                     ThrowError("Client id \"" + id + "\" not found.");
                     return;
                 }
-                
+
                 ShowQuestionPrompt("Reason for banning \"" + client.Name + "\"?", (reason) =>
                 {
                     ShowQuestionPrompt("Enter the duration of the ban (leave empty to ban permanently, or use the format \"[days] d [hours] h\")", (duration) =>
@@ -1112,39 +1261,50 @@ namespace Barotrauma
             }));
 
 
-            commands.Add(new Command("banip", "banip [ip]: Ban the IP address from the server.", (string[] args) =>
+            commands.Add(new Command("banip", CommandType.Network, "banip [ip]: Ban the IP address from the server.", (string[] args) =>
             {
                 if (GameMain.Server == null || args.Length == 0) return;
-                
-                ShowQuestionPrompt("Reason for banning the ip \"" + args[0] + "\"?", (reason) =>
+
+                ShowQuestionPrompt("Enter the name to give the ip \"" + args[0] + "\"?", (name) =>
                 {
-                    ShowQuestionPrompt("Enter the duration of the ban (leave empty to ban permanently, or use the format \"[days] d [hours] h\")", (duration) =>
+                    ShowQuestionPrompt("Reason for banning the ip \"" + args[0] + "\"?", (reason) =>
                     {
-                        TimeSpan? banDuration = null;
-                        if (!string.IsNullOrWhiteSpace(duration))
+                        ShowQuestionPrompt("Enter the duration of the ban (leave empty to ban permanently, or use the format \"[days] d [hours] h\")", (duration) =>
                         {
-                            if (!TryParseTimeSpan(duration, out TimeSpan parsedBanDuration))
+                            TimeSpan? banDuration = null;
+                            if (!string.IsNullOrWhiteSpace(duration))
                             {
-                                ThrowError("\"" + duration + "\" is not a valid ban duration. Use the format \"[days] d [hours] h\", \"[days] d\" or \"[hours] h\".");
-                                return;
+                                if (!TryParseTimeSpan(duration, out TimeSpan parsedBanDuration))
+                                {
+                                    ThrowError("\"" + duration + "\" is not a valid ban duration. Use the format \"[days] d [hours] h\", \"[days] d\" or \"[hours] h\".");
+                                    return;
+                                }
+                                banDuration = parsedBanDuration;
                             }
-                            banDuration = parsedBanDuration;
-                        }
-                        
-                        var clients = GameMain.Server.ConnectedClients.FindAll(c => c.Connection.RemoteEndPoint.Address.ToString() == args[0]);
-                        if (clients.Count == 0)
-                        {
-                            GameMain.Server.BanList.BanPlayer("Unnamed", args[0], reason, banDuration);
-                        }
-                        else
-                        {
-                            foreach (Client cl in clients)
+
+                            if (name == null || name == "") name = "IP Banned";
+
+                            var client = GameMain.Server.ConnectedClients.Find(c => c.Connection.RemoteEndPoint.Address.ToString() == args[0]);
+
+                            if (client == null)
                             {
-                                GameMain.Server.BanClient(cl, reason, false, banDuration);
+                                GameMain.Server.BanList.BanPlayer(name, args[0], reason, banDuration);
                             }
-                        }
+                            else
+                            {
+                                for (int i = GameMain.Server.ConnectedClients.Count - 1; i >= 0; i--)
+                                {
+                                    if (GameMain.Server.ConnectedClients[i].Connection.RemoteEndPoint.Address.ToString() == args[0])
+                                    {
+                                        GameMain.Server.KickBannedClient(GameMain.Server.ConnectedClients[i].Connection, reason);
+                                    }
+                                }
+                                GameMain.Server.BanList.BanPlayer(name, args[0], reason, banDuration);
+                                //GameMain.Server.BanClient(client, reason,false, banDuration);
+                            }
+                        });
                     });
-                });                
+                });
             },
             (string[] args) =>
             {
@@ -1168,7 +1328,7 @@ namespace Barotrauma
                         GameMain.Client.SendConsoleCommand(
                             "banip " +
                             args[0] + " " +
-                            (banDuration.HasValue ? banDuration.Value.TotalSeconds.ToString() : "0") + " "  +
+                            (banDuration.HasValue ? banDuration.Value.TotalSeconds.ToString() : "0") + " " +
                             reason);
                     });
                 });
@@ -1196,7 +1356,7 @@ namespace Barotrauma
 
                 if (clients.Count == 0)
                 {
-                    GameMain.Server.BanList.BanPlayer("Unnamed", args[0], reason, duration);
+                    GameMain.Server.BanList.BanPlayer("ClientIPBan", args[0], reason, duration);
                 }
                 else
                 {
@@ -1207,9 +1367,19 @@ namespace Barotrauma
                 }
             }));
 
-            commands.Add(new Command("teleportcharacter|teleport", "teleport [character name]: Teleport the specified character to the position of the cursor. If the name parameter is omitted, the controlled character will be teleported.", (string[] args) =>
+            commands.Add(new Command("teleportcharacter|teleport", CommandType.Character, "teleport [character name]: Teleport the specified character to the position of the cursor. If the name parameter is omitted, the controlled character will be teleported.", (string[] args) =>
             {
                 Character tpCharacter = (args.Length == 0) ? Character.Controlled : FindMatchingCharacter(args, false);
+
+                if (args.Length == 0)
+                {
+                    tpCharacter = Character.Controlled;
+                }
+                else
+                {
+                    tpCharacter = FindMatchingCharacter(args, false);
+                }
+
                 if (tpCharacter == null) return;
                 
                 var cam = GameMain.GameScreen.Cam;
@@ -1238,11 +1408,26 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("godmode", "godmode: Toggle submarine godmode. Makes the main submarine invulnerable to damage.", (string[] args) =>
+            commands.Add(new Command("godmode", CommandType.GamePower, "godmode: Toggle submarine godmode. Makes the main submarine invulnerable to damage.", (string[] args) =>
             {
                 if (Submarine.MainSub == null) return;
 
                 Submarine.MainSub.GodMode = !Submarine.MainSub.GodMode;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (Submarine.MainSub.GodMode)
+                    {
+                        GameMain.Server.ToggleGodmodeButton.Text = "GodMode: Off";
+                        GameMain.Server.ToggleGodmodeButton.ToolTip = "Turns off godmode which allows for submarine damage.";
+                    }
+                    else
+                    {
+                        GameMain.Server.ToggleGodmodeButton.Text = "GodMode: On";
+                        GameMain.Server.ToggleGodmodeButton.ToolTip = "Turns on godmode which stops submarine damage.";
+                    }
+                }
+#endif
                 NewMessage(Submarine.MainSub.GodMode ? "Godmode on" : "Godmode off", Color.White);
             },
             null,
@@ -1255,17 +1440,47 @@ namespace Barotrauma
                 GameMain.Server.SendConsoleMessage(Submarine.MainSub.GodMode ? "Godmode on" : "Godmode off", client);
             }));
 
-            commands.Add(new Command("lockx", "lockx: Lock horizontal movement of the main submarine.", (string[] args) =>
+            commands.Add(new Command("lockx", CommandType.GamePower, "lockx: Lock horizontal movement of the main submarine.", (string[] args) =>
             {
                 Submarine.LockX = !Submarine.LockX;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (Submarine.LockX)
+                    {
+                        GameMain.Server.LockSubXButton.Text = "Unlock Sub X";
+                        GameMain.Server.LockSubXButton.ToolTip = "Allows again any submarine/shuttle to Move Left/Right.";
+                    }
+                    else
+                    {
+                        GameMain.Server.LockSubXButton.Text = "Lock Sub X";
+                        GameMain.Server.LockSubXButton.ToolTip = "Prevents any submarine/shuttle from moving Left/Right.";
+                    }
+                }
+#endif
             }, null, null));
 
-            commands.Add(new Command("locky", "locky: Lock vertical movement of the main submarine.", (string[] args) =>
+            commands.Add(new Command("locky", CommandType.GamePower, "locky: Lock vertical movement of the main submarine.", (string[] args) =>
             {
                 Submarine.LockY = !Submarine.LockY;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (Submarine.LockY)
+                    {
+                        GameMain.Server.LockSubYButton.Text = "Unlock Sub Y";
+                        GameMain.Server.LockSubYButton.ToolTip = "Allows again any submarine/shuttle to move Up/Down.";
+                    }
+                    else
+                    {
+                        GameMain.Server.LockSubYButton.Text = "Lock Sub Y";
+                        GameMain.Server.LockSubYButton.ToolTip = "Prevents any submarine/shuttle from moving Up/Down.";
+                    }
+                }
+#endif
             }, null, null));
 
-            commands.Add(new Command("dumpids", "", (string[] args) =>
+            commands.Add(new Command("dumpids", CommandType.Debug, "", (string[] args) =>
             {
                 try
                 {
@@ -1278,7 +1493,7 @@ namespace Barotrauma
                 }
             }));
 
-            commands.Add(new Command("findentityids", "findentityids [entityname]", (string[] args) =>
+            commands.Add(new Command("findentityids", CommandType.Debug, "findentityids [entityname]", (string[] args) =>
             {
                 if (args.Length == 0) return;
                 args[0] = args[0].ToLowerInvariant();
@@ -1298,15 +1513,12 @@ namespace Barotrauma
                 }
             }));
 
-            commands.Add(new Command("heal", "heal [character name]: Restore the specified character to full health. If the name parameter is omitted, the controlled character will be healed.", (string[] args) =>
+            commands.Add(new Command("heal", CommandType.Character, "heal [character name]: Restore the specified character to full health. If the name parameter is omitted, the controlled character will be healed.", (string[] args) =>
             {
                 Character healedCharacter = (args.Length == 0) ? Character.Controlled : FindMatchingCharacter(args);
                 if (healedCharacter != null)
                 {
-                    healedCharacter.AddDamage(CauseOfDeath.Damage, -healedCharacter.MaxHealth, null);
-                    healedCharacter.Oxygen = 100.0f;
-                    healedCharacter.Bleeding = 0.0f;
-                    healedCharacter.SetStun(0.0f, true);
+                    healedCharacter.Heal();
                 }
             },
             null,
@@ -1315,10 +1527,7 @@ namespace Barotrauma
                 Character healedCharacter = (args.Length == 0) ? client.Character : FindMatchingCharacter(args);
                 if (healedCharacter != null)
                 {
-                    healedCharacter.AddDamage(CauseOfDeath.Damage, -healedCharacter.MaxHealth, null);
-                    healedCharacter.Oxygen = 100.0f;
-                    healedCharacter.Bleeding = 0.0f;
-                    healedCharacter.SetStun(0.0f, true);
+                    healedCharacter.Heal();
                 }
             },
             () =>
@@ -1329,12 +1538,12 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("revive", "revive [character name]: Bring the specified character back from the dead. If the name parameter is omitted, the controlled character will be revived.", (string[] args) =>
+            commands.Add(new Command("revive", CommandType.Character, "revive [character name]: Bring the specified character back from the dead. If the name parameter is omitted, the controlled character will be revived.", (string[] args) =>
             {
                 Character revivedCharacter = (args.Length == 0) ? Character.Controlled : FindMatchingCharacter(args);
                 if (revivedCharacter == null) return;
-                
-                revivedCharacter.Revive(false);
+
+                revivedCharacter.Revive(true);
                 if (GameMain.Server != null)
                 {
                     foreach (Client c in GameMain.Server.ConnectedClients)
@@ -1374,19 +1583,68 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("freeze", "", (string[] args) =>
+            commands.Add(new Command("freeze", CommandType.GamePower, "freeze [character name]: Freezes the controls of the specified client character", (string[] args) =>
             {
-                if (Character.Controlled != null) Character.Controlled.AnimController.Frozen = !Character.Controlled.AnimController.Frozen;
+                Character frozenCharacter = null;
+                if (args.Length == 0)
+                {
+                    frozenCharacter = Character.Controlled;
+                }
+                else
+                {
+                    frozenCharacter = FindMatchingCharacter(args);
+                }
+
+                if (frozenCharacter == null) return;
+
+                if(GameMain.NilMod.FrozenCharacters.Find(c => c == frozenCharacter) != null)
+                {
+                    if (GameMain.Server != null)
+                    {
+                        if (GameMain.Server.ConnectedClients.Find(c => c.Character == frozenCharacter) != null)
+                        {
+                            var chatMsg = ChatMessage.Create(
+                            "Server Message",
+                            ("You have been unfrozen by the server\n\nYou may now move again and perform actions."),
+                            (ChatMessageType)ChatMessageType.MessageBox,
+                            null);
+
+                            GameMain.Server.SendChatMessage(chatMsg, GameMain.Server.ConnectedClients.Find(c => c.Character == frozenCharacter));
+                        }
+                    }
+                    GameMain.NilMod.FrozenCharacters.Remove(frozenCharacter);
+                }
+                else
+                {
+                    GameMain.NilMod.FrozenCharacters.Add(frozenCharacter);
+                    if (GameMain.Server != null)
+                    {
+                        if (GameMain.Server.ConnectedClients.Find(c => c.Character == frozenCharacter) != null)
+                        {
+                            var chatMsg = ChatMessage.Create(
+                            "Server Message",
+                            ("You have been frozen by the server\n\nYou may still talk if able, but no longer perform any actions or movements."),
+                            (ChatMessageType)ChatMessageType.MessageBox,
+                            null);
+
+                            GameMain.Server.SendChatMessage(chatMsg, GameMain.Server.ConnectedClients.Find(c => c.Character == frozenCharacter));
+                        }
+                    }
+                }
+
+                //if (frozenCharacter != null) frozenCharacter.AnimController.Frozen = !frozenCharacter.AnimController.Frozen;
+
             },
             null,
             (Client client, Vector2 cursorWorldPos, string[] args) => 
             {
-                if (client.Character != null) client.Character.AnimController.Frozen = !client.Character.AnimController.Frozen;
+                //Needs client support
+                //if (client.Character != null) client.Character.AnimController.Frozen = !client.Character.AnimController.Frozen;
             }));
 
             commands.Add(new Command("ragdoll", "ragdoll [character name]: Force-ragdoll the specified character. If the name parameter is omitted, the controlled character will be ragdolled.", (string[] args) =>
             {
-                Character ragdolledCharacter = (args.Length == 0) ? Character.Controlled : FindMatchingCharacter(args);  
+                Character ragdolledCharacter = (args.Length == 0) ? Character.Controlled : FindMatchingCharacter(args);
                 if (ragdolledCharacter != null)
                 {
                     ragdolledCharacter.IsForceRagdolled = !ragdolledCharacter.IsForceRagdolled;
@@ -1409,31 +1667,68 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("freecamera|freecam", "freecam: Detach the camera from the controlled character.", (string[] args) =>
+            commands.Add(new Command("freecamera|freecam", CommandType.Render, "freecam: Detach the camera from the controlled character.", (string[] args) =>
             {
+                Character.Spied = null;
                 Character.Controlled = null;
                 GameMain.GameScreen.Cam.TargetPos = Vector2.Zero;
             }));
 
-            commands.Add(new Command("water|editwater", "water/editwater: Toggle water editing. Allows adding water into rooms by holding the left mouse button and removing it by holding the right mouse button.", (string[] args) =>
+            commands.Add(new Command("water|editwater", CommandType.GamePower, "water/editwater: Toggle water editing. Allows adding water into rooms by holding the left mouse button and removing it by holding the right mouse button.", (string[] args) =>
             {
                 if (GameMain.Client == null)
                 {
                     Hull.EditWater = !Hull.EditWater;
+#if CLIENT
+                    if (GameMain.Server != null)
+                    {
+                        if (Hull.EditWater)
+                        {
+                            GameMain.Server.WaterButton.Text = "Water Off";
+                            GameMain.Server.WaterButton.ToolTip = "Turns off water control.";
+                            GameMain.Server.FiresButton.Text = "Fire On";
+                            GameMain.Server.FiresButton.ToolTip = "Turns on fire control, Left click to add fires.";
+                            Hull.EditFire = false;
+                        }
+                        else
+                        {
+                            GameMain.Server.WaterButton.Text = "Water: On";
+                            GameMain.Server.WaterButton.ToolTip = "Turns on water control, Left click to add water, Right click to remove.";
+                        }
+                    }
+#endif
                     NewMessage(Hull.EditWater ? "Water editing on" : "Water editing off", Color.White);
                 }
             }));
 
-            commands.Add(new Command("fire|editfire", "fire/editfire: Allows putting up fires by left clicking.", (string[] args) =>
+            commands.Add(new Command("fire|editfire", CommandType.GamePower, "fire/editfire: Allows putting up fires by left clicking.", (string[] args) =>
             {
                 if (GameMain.Client == null)
                 {
                     Hull.EditFire = !Hull.EditFire;
+#if CLIENT
+                    if (GameMain.Server != null)
+                    {
+                        if (Hull.EditFire)
+                        {
+                            GameMain.Server.FiresButton.Text = "Fire: Off";
+                            GameMain.Server.FiresButton.ToolTip = "Turns off fire control.";
+                            GameMain.Server.WaterButton.Text = "Water: On";
+                            GameMain.Server.WaterButton.ToolTip = "Turns on water control, Left click to add water, Right click to remove.";
+                            Hull.EditWater = false;
+                        }
+                        else
+                        {
+                            GameMain.Server.FiresButton.Text = "Fire: On";
+                            GameMain.Server.FiresButton.ToolTip = "Turns on fire control, Left click to add fires.";
+                        }
+                    }
+#endif
                     NewMessage(Hull.EditFire ? "Fire spawning on" : "Fire spawning off", Color.White);
                 }
             }));
 
-            commands.Add(new Command("explosion", "explosion [range] [force] [damage] [structuredamage] [emp strength]: Creates an explosion at the position of the cursor.", (string[] args) =>
+            commands.Add(new Command("explosion", CommandType.GamePower, "explosion [range] [force] [damage] [structuredamage] [emp strength]: Creates an explosion at the position of the cursor.", (string[] args) =>
             {
                 Vector2 explosionPos = GameMain.GameScreen.Cam.ScreenToWorld(PlayerInput.MousePosition);
                 float range = 500, force = 10, damage = 50, structureDamage = 10, empStrength = 0.0f;
@@ -1457,7 +1752,7 @@ namespace Barotrauma
                 new Explosion(range, force, damage, structureDamage, empStrength).Explode(explosionPos);
             }));
 
-            commands.Add(new Command("fixitems", "fixitems: Repairs all items and restores them to full condition.", (string[] args) =>
+            commands.Add(new Command("fixitems", CommandType.GamePower, "fixitems: Repairs all items and restores them to full condition.", (string[] args) =>
             {
                 foreach (Item it in Item.ItemList)
                 {
@@ -1465,7 +1760,7 @@ namespace Barotrauma
                 }
             }, null, null));
 
-            commands.Add(new Command("fixhulls|fixwalls", "fixwalls/fixhulls: Fixes all walls.", (string[] args) =>
+            commands.Add(new Command("fixhulls|fixwalls", CommandType.GamePower, "fixwalls/fixhulls: Fixes all walls.", (string[] args) =>
             {
                 foreach (Structure w in Structure.WallList)
                 {
@@ -1476,7 +1771,7 @@ namespace Barotrauma
                 }
             }, null, null));
 
-            commands.Add(new Command("power", "power [temperature]: Immediately sets the temperature of the nuclear reactor to the specified value.", (string[] args) =>
+            commands.Add(new Command("power", CommandType.GamePower, "power [temperature]: Immediately sets the temperature of the nuclear reactor to the specified value.", (string[] args) =>
             {
                 Item reactorItem = Item.ItemList.Find(i => i.GetComponent<Reactor>() != null);
                 if (reactorItem == null) return;
@@ -1495,7 +1790,7 @@ namespace Barotrauma
                 }
             }, null, null));
 
-            commands.Add(new Command("oxygen|air", "oxygen/air: Replenishes the oxygen levels in every room to 100%.", (string[] args) =>
+            commands.Add(new Command("oxygen|air", CommandType.GamePower, "oxygen/air: Replenishes the oxygen levels in every room to 100%.", (string[] args) =>
             {
                 foreach (Hull hull in Hull.hullList)
                 {
@@ -1503,34 +1798,64 @@ namespace Barotrauma
                 }
             }, null, null));
 
-            commands.Add(new Command("kill", "kill [character]: Immediately kills the specified character.", (string[] args) =>
+            commands.Add(new Command("kill", CommandType.GamePower, "kill [character]: Immediately kills the specified character.", (string[] args) =>
             {
-                Character killedCharacter = (args.Length == 0) ? Character.Controlled : FindMatchingCharacter(args);                
-                killedCharacter?.AddDamage(CauseOfDeath.Damage, killedCharacter.MaxHealth * 2, null);
+                Character killedCharacter = (args.Length == 0) ? Character.Controlled : FindMatchingCharacter(args);
+                //Use high damage values due to health multipliers
+                killedCharacter.AddDamage(CauseOfDeath.Damage, 1000000.0f, null);
+                //If still not dead make extra sure they are due to anti death code.
+                if (!killedCharacter.IsDead) killedCharacter.Kill(CauseOfDeath.Damage, true);
             },
             null,
             (Client client, Vector2 cursorWorldPos, string[] args) =>
             {
                 Character killedCharacter = (args.Length == 0) ? client.Character : FindMatchingCharacter(args);
-                killedCharacter?.AddDamage(CauseOfDeath.Damage, killedCharacter.MaxHealth * 2, null);                
+                if (killedCharacter == null)
+                {
+                    GameMain.Server.SendConsoleMessage("Server could not find a character named: " + args, client);
+                    return;
+                }
+
+                //Use high damage values due to health multipliers
+                killedCharacter.AddDamage(CauseOfDeath.Damage, 1000000.0f, null);
+                //If still not dead make extra sure they are due to anti death code.
+                if (!killedCharacter.IsDead) killedCharacter.Kill(CauseOfDeath.Damage, true);
             }));
 
-            commands.Add(new Command("killmonsters", "killmonsters: Immediately kills all AI-controlled enemies in the level.", (string[] args) =>
+            commands.Add(new Command("killmonsters", CommandType.GamePower, "killmonsters: Immediately kills all AI-controlled enemies in the level.", (string[] args) =>
             {
                 foreach (Character c in Character.CharacterList)
                 {
                     if (!(c.AIController is EnemyAIController)) continue;
-                    c.AddDamage(CauseOfDeath.Damage, c.MaxHealth * 2, null);
+                    //Use high damage values due to health multipliers
+                    c.AddDamage(CauseOfDeath.Damage, 1000000.0f, null);
+                    //If still not dead make extra sure they are due to anti death code.
+                    if (!c.IsDead) c.Kill(CauseOfDeath.Damage, true);
                 }
             }, null, null));
 
-            commands.Add(new Command("netstats", "netstats: Toggles the visibility of the network statistics UI.", (string[] args) =>
+            commands.Add(new Command("netstats", CommandType.Network, "netstats: Toggles the visibility of the network statistics UI.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
+#if CLIENT
+                GameMain.Server.ShowLagDiagnostics = false;
                 GameMain.Server.ShowNetStats = !GameMain.Server.ShowNetStats;
+                if (GameMain.Server.ShowNetStats)
+                {
+                    GameMain.Server.ShowNetStatsButton.Text = "NetStats: Off";
+                    GameMain.Server.ShowNetStatsButton.ToolTip = "Turns off the netstats screen which shows the latencies and IP Addresses of connections.";
+                }
+                else
+                {
+                    GameMain.Server.ShowNetStatsButton.Text = "NetStats: On";
+                    GameMain.Server.ShowNetStatsButton.ToolTip = "Turns on the netstats screen which shows the latencies and IP Addresses of connections.";
+                }
+                GameMain.Server.ShowLagDiagnosticsButton.Text = "LagProfiler: On";
+                GameMain.Server.ShowLagDiagnosticsButton.ToolTip = "Turns on the lag profiling information.";
+#endif
             }));
 
-            commands.Add(new Command("setclientcharacter", "setclientcharacter [client name] ; [character name]: Gives the client control of the specified character.", (string[] args) =>
+            commands.Add(new Command("setclientcharacter", CommandType.Network, "setclientcharacter [client name] ; [character name]: Gives the client control of the specified character.", (string[] args) =>
             {
                 if (GameMain.Server == null) return;
 
@@ -1588,7 +1913,7 @@ namespace Barotrauma
                 };
             }));
 
-            commands.Add(new Command("campaigninfo|campaignstatus", "campaigninfo: Display information about the state of the currently active campaign.", (string[] args) =>
+            commands.Add(new Command("campaigninfo|campaignstatus", CommandType.Generic, "campaigninfo: Display information about the state of the currently active campaign.", (string[] args) =>
             {
                 var campaign = GameMain.GameSession?.GameMode as CampaignMode;
                 if (campaign == null)
@@ -1600,7 +1925,7 @@ namespace Barotrauma
                 campaign.LogState();
             }));
 
-            commands.Add(new Command("campaigndestination|setcampaigndestination", "campaigndestination [index]: Set the location to head towards in the currently active campaign.", (string[] args) =>
+            commands.Add(new Command("campaigndestination|setcampaigndestination", CommandType.Generic, "campaigndestination [index]: Set the location to head towards in the currently active campaign.", (string[] args) =>
             {
                 var campaign = GameMain.GameSession?.GameMode as CampaignMode;
                 if (campaign == null)
@@ -1709,8 +2034,7 @@ namespace Barotrauma
                 GameMain.Server.SendConsoleMessage(location.Name + " selected.", senderClient);
             }));
 
-#if DEBUG
-            commands.Add(new Command("spamevents", "A debug command that immediately creates entity events for all items, characters and structures.", (string[] args) =>
+            commands.Add(new Command("spamevents", CommandType.DebugHide, "A debug command that immediately creates entity events for all items, characters and structures.", (string[] args) =>
             {
                 foreach (Item item in Item.ItemList)
                 {
@@ -1743,11 +2067,50 @@ namespace Barotrauma
                 }
             }, null, null));
 
-            commands.Add(new Command("flipx", "flipx: mirror the main submarine horizontally", (string[] args) =>
+            commands.Add(new Command("messagebox", CommandType.Network, "messagebox [text here]: Sends a messagebox to all connected clients displaying the text.", (string[] args) =>
+            {
+                if (args != null && args.Count() > 0)
+                {
+                    if (GameMain.Server != null)
+                    {
+                        var chatMsg = ChatMessage.Create(
+                        "Server Message",
+                        (string.Join(" ", args)),
+                        (ChatMessageType)ChatMessageType.MessageBox,
+                        null);
+
+                        if (GameMain.Server.ConnectedClients.Count() > 0)
+                        {
+                            foreach (Client c in GameMain.Server.ConnectedClients)
+                            {
+                                GameMain.Server.SendChatMessage(chatMsg, c);
+                            }
+                        }
+#if CLIENT
+                        new GUIMessageBox("Server Broadcast", chatMsg.Text);
+#endif
+                    }
+#if CLIENT
+                    else
+                    {
+                        new GUIMessageBox("", string.Join(" ", args));
+                    }
+#endif
+                }
+                else
+                {
+                    DebugConsole.NewMessage("Messagebox [Text here] is the correct usage, messagebox cancelled (Command requires text)", Color.Red);
+                }
+            }));
+
+            commands.Add(new Command("flipx", CommandType.Debug, "flipx: mirror the main submarine horizontally", (string[] args) =>
             {
                 Submarine.MainSub?.FlipX();
             }));
-#endif
+
+            //NilMod Commands
+            AddNilModCommands();
+
             InitProjectSpecific();
 
             commands.Sort((c1, c2) => c1.names[0].CompareTo(c2.names[0]));
@@ -1888,17 +2251,24 @@ namespace Barotrauma
 				if (++i >= Messages.Count) break;
 			} while (!Messages[selectedIndex].IsCommand);
 
-            return Messages[selectedIndex].Text;            
+            if(GameMain.NilMod.DebugConsoleTimeStamp)
+            {
+                return Messages[selectedIndex].Text.Substring(22);
+            }
+            else
+            {
+                return Messages[selectedIndex].Text;
+            }
         }
 
-        public static void ExecuteCommand(string command)
+        public static void ExecuteCommand(string command, Boolean hidecommand = false)
         {
             if (activeQuestionCallback != null)
             {
 #if CLIENT
                 activeQuestionText = null;
 #endif
-                NewMessage(command, Color.White, true);
+                if(!hidecommand) NewMessage(command, Color.White, true);
                 //reset the variable before invoking the delegate because the method may need to activate another question
                 var temp = activeQuestionCallback;
                 activeQuestionCallback = null;
@@ -1909,6 +2279,7 @@ namespace Barotrauma
             if (string.IsNullOrWhiteSpace(command) || command == "\\" || command == "\n") return;
 
             string[] splitCommand = SplitCommand(command);
+
             if (splitCommand.Length == 0)
             {
                 ThrowError("Failed to execute command \"" + command + "\"!");
@@ -1919,9 +2290,11 @@ namespace Barotrauma
                 return;
             }
 
+
+
             if (!splitCommand[0].ToLowerInvariant().Equals("admin"))
             {
-                NewMessage(command, Color.White, true);
+                if (!hidecommand) NewMessage(command, Color.White, true);
             }
 
 #if CLIENT
@@ -1934,20 +2307,48 @@ namespace Barotrauma
                     //if the command is not defined client-side, we'll relay it anyway because it may be a custom command at the server's side
                     if (matchingCommand == null || matchingCommand.RelayToServer)
                     {
-                        GameMain.Client.SendConsoleCommand(command);
+                        if (splitCommand[0].ToLowerInvariant() != "spy"
+                            || splitCommand[0].ToLowerInvariant() != "spycharacter"
+                            || splitCommand[0].ToLowerInvariant() != "spyid"
+                            || splitCommand[0].ToLowerInvariant() != "spyclientid"
+                            || splitCommand[0].ToLowerInvariant() != "clientlist")
+                        {
+                            GameMain.Client.SendConsoleCommand(command);
+                        }
                     }
                     else
                     {
                         matchingCommand.ClientExecute(splitCommand.Skip(1).ToArray());
                     }
 
-                    NewMessage("Server command: " + command, Color.White);
+                    if (splitCommand[0].ToLowerInvariant() != "spy"
+                            || splitCommand[0].ToLowerInvariant() != "spycharacter"
+                            || splitCommand[0].ToLowerInvariant() != "spyid"
+                            || splitCommand[0].ToLowerInvariant() != "spyclientid"
+                            || splitCommand[0].ToLowerInvariant() != "clientlist")
+                    {
+                        NewMessage("Server command: " + command, Color.White);
+                    }
                     return;
                 }
 #if !DEBUG
                 if (!IsCommandPermitted(splitCommand[0].ToLowerInvariant(), GameMain.Client))
                 {
                     ThrowError("You're not permitted to use the command \"" + splitCommand[0].ToLowerInvariant() + "\"!");
+
+                    if(GameMain.Client.permittedConsoleCommands.Count > 0)
+                    {
+                        NewMessage("You are permitted to use the following commands on this server:", Color.Cyan);
+                        foreach (string permittedcommand in GameMain.Client.permittedConsoleCommands)
+                        {
+                            NewMessage("     " + permittedcommand, Color.Cyan);
+                        }
+                    }
+                    else
+                    {
+                        NewMessage("You are not permitted to use any console commands on this server.", Color.Cyan);
+                    }
+
                     return;
                 }
 #endif
@@ -1996,6 +2397,8 @@ namespace Barotrauma
                 return;
             }
 
+
+
             if (!MathUtils.IsValid(cursorWorldPos))
             {
                 GameMain.Server.SendConsoleMessage("Could not execute command \"" + command + "\" - invalid cursor position.", client);
@@ -2031,7 +2434,7 @@ namespace Barotrauma
                 characterIndex = -1;
             }
 
-            var matchingCharacters = Character.CharacterList.FindAll(c => (!ignoreRemotePlayers || !c.IsRemotePlayer) && c.Name.ToLowerInvariant() == characterName);
+            var matchingCharacters = Character.CharacterList.FindAll(c => ((!ignoreRemotePlayers || !c.IsRemotePlayer) && c.Name.ToLowerInvariant() == characterName));
 
             if (!matchingCharacters.Any())
             {
@@ -2121,6 +2524,17 @@ namespace Barotrauma
             if (args[0].ToLowerInvariant() == "human")
             {
                 spawnedCharacter = Character.Create(Character.HumanConfigFile, spawnPosition);
+                //Custom NilMod Humans Code
+                spawnedCharacter.TeamID = 1;
+                //TODO - fix this for other translations where it may break?
+                spawnedCharacter.Info = new CharacterInfo(Character.HumanConfigFile, spawnedCharacter.Name, Gender.None, JobPrefab.List.Find(jp => jp.Name.ToLowerInvariant() == "mechanic" || jp.Name.ToLowerInvariant() != "captain" && (jp.Skills.Find(s => s.Name.ToLowerInvariant() == "construction")?.LevelRange.X >= 40)));
+                spawnedCharacter.Info.TeamID = 1;
+                HumanAIController humanai = (HumanAIController)spawnedCharacter.AIController;
+                //Give the Fckr a use and make them run around being useful
+                //Scratch that they turn into complete idiots usually
+                //humanai.SetOrder(Order.PrefabList.Find(o => o.Name == "Fix Leaks"),"");
+
+                spawnedCharacter.GiveJobItems(WayPoint.GetRandom(SpawnType.Human, spawnedCharacter.Info.Job));
 
 #if CLIENT
                 if (GameMain.GameSession != null)
@@ -2143,7 +2557,15 @@ namespace Barotrauma
                 {
                     if (Path.GetFileNameWithoutExtension(characterFile).ToLowerInvariant() == args[0].ToLowerInvariant())
                     {
-                        Character.Create(characterFile, spawnPosition);
+                        spawnedCharacter = Character.Create(characterFile, spawnPosition);
+
+#if CLIENT
+                        if (GameMain.Server != null)
+                        {
+                            GameSession.inGameInfo.AddNoneClientCharacter(spawnedCharacter);
+                            GameSession.inGameInfo.UpdateGameInfoGUIList();
+                        }
+#endif
                         return;
                     }
                 }
@@ -2156,6 +2578,13 @@ namespace Barotrauma
                     + "/" + args[0].ToLower() + ".xml";
                 Character.Create(configPath, spawnPosition);
             }
+#if CLIENT
+            if (spawnedCharacter != null && GameMain.Server != null)
+            {
+                GameSession.inGameInfo.AddNoneClientCharacter(spawnedCharacter);
+                GameSession.inGameInfo.UpdateGameInfoGUIList();
+            }
+#endif
         }
 
         private static void SpawnItem(string[] args, Vector2 cursorPos, Character controlledCharacter, out string errorMsg)
@@ -2178,10 +2607,13 @@ namespace Barotrauma
                     spawnInventory = controlledCharacter == null ? null : controlledCharacter.Inventory;
                     break;
                 case "cargo":
+                case "inside":
+                    //errorMsg = "Inside is not valid for item spawning.";
                     var wp = WayPoint.GetRandom(SpawnType.Cargo, null, Submarine.MainSub);
                     spawnPos = wp == null ? Vector2.Zero : wp.WorldPosition;
+                    //return;
                     break;
-                //Dont do a thing, random is basically Human points anyways - its in the help description.
+                //Dont do a thing, random is basically cargo points anyways
                 case "random":
                     extraParams = 1;
                     return;
@@ -2208,7 +2640,7 @@ namespace Barotrauma
                 }
             }
             //Check again if the item can be found again after having checked for a character
-            if (itemPrefab == null)
+            if(itemPrefab == null)
             {
                 errorMsg = "Item \"" + itemName + "\" not found!";
                 return;
@@ -2236,22 +2668,39 @@ namespace Barotrauma
             if (string.IsNullOrEmpty((msg))) return;
 
 #if SERVER
-            var newMsg = new ColoredText(msg, color, isCommand);
-            Messages.Add(newMsg);
+            ColoredText newMsg;
+            if (GameMain.NilMod.DebugConsoleTimeStamp)
+            {
+                newMsg = new ColoredText("[" + DateTime.Now.ToString() + "] " + msg, color, isCommand);
+                Messages.Add(newMsg);
+            }
+            else
+            {
+                newMsg = new ColoredText(msg, color, isCommand); 
+                Messages.Add(newMsg);
+            }
 
             //TODO: REMOVE
             Console.ForegroundColor = XnaToConsoleColor.Convert(color);
-            Console.WriteLine(msg);
+            
+            if (GameMain.NilMod.DebugConsoleTimeStamp)
+                {
+                    Console.WriteLine("[" + DateTime.Now.ToString() + "] " + msg);
+                }
+                else
+                {
+                    Console.WriteLine(msg);
+                }
             Console.ForegroundColor = ConsoleColor.White;
 
-            if (GameSettings.SaveDebugConsoleLogs)
-            {
-                unsavedMessages.Add(newMsg);
-                if (unsavedMessages.Count >= messagesPerFile)
-                {
-                    SaveLogs();
-                    unsavedMessages.Clear();
-                }
+            if (GameSettings.SaveDebugConsoleLogs) 
+            { 
+                unsavedMessages.Add(newMsg); 
+                if (unsavedMessages.Count >= messagesPerFile) 
+                { 
+                    SaveLogs(); 
+                    unsavedMessages.Clear(); 
+                } 
             }
 
             if (Messages.Count > MaxMessages)
@@ -2261,7 +2710,14 @@ namespace Barotrauma
 #elif CLIENT
             lock (queuedMessages)
             {
-                queuedMessages.Enqueue(new ColoredText(msg, color, isCommand));
+                if (GameMain.NilMod != null && GameMain.NilMod.DebugConsoleTimeStamp)
+                {
+                    queuedMessages.Enqueue(new ColoredText("[" + DateTime.Now.ToString() + "] " + msg, color, isCommand));
+                }
+                else
+                {
+                    queuedMessages.Enqueue(new ColoredText(msg, color, isCommand));
+                }
             }
 #endif
         }
@@ -2353,7 +2809,6 @@ namespace Barotrauma
 #endif
         }
 
-
         public static void SaveLogs()
         {
             if (unsavedMessages.Count == 0) return;
@@ -2397,6 +2852,722 @@ namespace Barotrauma
                 unsavedMessages.Clear();
                 ThrowError("Saving debug console log to " + filePath + " failed", e);
             }
+        }
+
+        //NilMod Custom Commands
+        public static void AddNilModCommands()
+        {
+            commands.Add(new Command("rechargepower", CommandType.GamePower, "rechargepower [SUBID]: Recharges every power container on a submarine.", (string[] args) =>
+            {
+                int subtorecharge = -1;
+
+                if (args.Length < 1)
+                {
+                    if (Submarine.MainSubs[0] != null)
+                    {
+                        subtorecharge = 0;
+                    }
+                    else
+                    {
+                        NewMessage("Cannot recharge submarine - There are no submarines loaded yet.", Color.Red);
+                    }
+                }
+                else
+                {
+                    if (args[0].All(Char.IsDigit))
+                    {
+                        if (Convert.ToInt16(args[0]) <= Submarine.MainSubs.Count() - 1)
+                        {
+                            subtorecharge = Convert.ToInt16(args[0]);
+                        }
+                        else
+                        {
+                            NewMessage("MainSub ID Range is from 0 to " + (Submarine.MainSubs.Count() - 1), Color.Red);
+                        }
+                    }
+                    else
+                    {
+                        NewMessage("Command only accepts numerics starting from 0", Color.Red);
+                    }
+                }
+                //Not Null? Lets try it! XD
+                if (GameMain.Server != null)
+                {
+                    if (Submarine.MainSubs[subtorecharge] != null)
+                    {
+                        GameMain.Server.GrantPower(subtorecharge);
+                    }
+                    else
+                    {
+                        NewMessage("Cannot recharge submarine - Submarine ID: " + subtorecharge + " Is not loaded in the game (If not multiple submarines use 0 or leave blank)", Color.Red);
+                    }
+                }
+                else
+                {
+                    NewMessage("Cannot recharge submarine - The Server is not running.", Color.Red);
+                }
+            }));
+
+            commands.Add(new Command("forceshuttle", CommandType.GamePower, "forceshuttle: Recalls and then sends out the respawn shuttle.", (string[] args) =>
+            {
+                if (GameMain.Server != null)
+                {
+                    if (GameMain.Server.respawnManager != null)
+                    {
+                        GameMain.Server.respawnManager.ForceShuttle();
+                    }
+                    else
+                    {
+                        NewMessage("The respawn manager is currently not loaded - No shuttle exists to force out", Color.Red);
+                    }
+                }
+                else
+                {
+                    NewMessage("The respawn manager is currently not loaded - The Server is not running.", Color.Red);
+                }
+            }));
+
+            commands.Add(new Command("recallshuttle", CommandType.GamePower, "recallshuttle: Recalls the respawn shuttle immediately.", (string[] args) =>
+            {
+                if (GameMain.Server != null)
+                {
+                    if (GameMain.Server.respawnManager != null)
+                    {
+                        GameMain.Server.respawnManager.RecallShuttle();
+                    }
+                    else
+                    {
+                        NewMessage("The respawn manager is currently not loaded - No shuttle exists to recall", Color.Red);
+                    }
+                }
+                else
+                {
+                    NewMessage("The respawn manager is currently not loaded - The Server is not running.", Color.Red);
+                }
+            }));
+
+            commands.Add(new Command("setrespawns", CommandType.DebugHide, "setrespawns [new Player Respawn Count]: Sets the number of characters left that can respawn shuttle will dispatch this round.", (string[] args) =>
+            {
+                //Code Here
+            }));
+
+            commands.Add(new Command("getrespawns", CommandType.DebugHide, "getrespawns: Gets the number of characters left that can respawn via a shuttle.", (string[] args) =>
+            {
+                //Code Here
+            }));
+#if CLIENT
+            commands.Add(new Command("movemainsub|movesub|teleportsub|teleportmainsub", CommandType.GamePower, "movemainsub|movesub|teleportsub|teleportmainsub [SUBID]: Teleports submarine to cursor then sets it to maintain position.", (string[] args) =>
+            {
+                int subtotp = -1;
+
+                if (args.Length < 1)
+                {
+                    if (Submarine.MainSubs[0] != null)
+                    {
+                        subtotp = 0;
+                    }
+                    else
+                    {
+                        NewMessage("Cannot teleport submarine - There are no submarines loaded yet.", Color.Red);
+                    }
+                }
+                else
+                {
+                    if (args[0].All(Char.IsDigit))
+                    {
+                        if (Convert.ToInt16(args[0]) <= Submarine.MainSubs.Count() - 1)
+                        {
+                            subtotp = Convert.ToInt16(args[0]);
+                        }
+                        else
+                        {
+                            NewMessage("MainSub ID Range is from 0 to " + (Submarine.MainSubs.Count() - 1), Color.Red);
+                        }
+                    }
+                    else
+                    {
+                        NewMessage("Command only accepts numerics starting from 0", Color.Red);
+                    }
+                }
+                //Not Null? Lets try it! XD
+                if (GameMain.Server != null)
+                {
+                    if (subtotp >= 0)
+                    {
+                        if (Submarine.MainSubs[subtotp] != null)
+                        {
+                            var cam = GameMain.GameScreen.Cam;
+                            GameMain.Server.MoveSub(subtotp, cam.ScreenToWorld(PlayerInput.MousePosition));
+                        }
+                        else
+                        {
+                            NewMessage("Cannot teleport submarine - Submarine ID: " + subtotp + " Is not loaded in the game (If not multiple submarines use 0 or leave blank)", Color.Red);
+                        }
+                    }
+                }
+                else
+                {
+                    NewMessage("Cannot teleport submarine - The Server is not running.", Color.Red);
+                }
+            }));
+
+            commands.Add(new Command("lagprofiler|showlagdiagnostics|togglelagdiagnostics", CommandType.Generic, "lagprofiler: Toggles the visibility of the CPUTime statistics UI.", (string[] args) =>
+            {
+                if (GameMain.Server == null) return;
+                GameMain.Server.ShowNetStats = false;
+                GameMain.Server.ShowLagDiagnostics = !GameMain.Server.ShowLagDiagnostics;
+                if (GameMain.Server.ShowLagDiagnostics)
+                {
+                    GameMain.Server.ShowLagDiagnosticsButton.Text = "LagProfiler: Off";
+                    GameMain.Server.ShowLagDiagnosticsButton.ToolTip = "Turns off the lag profiling information.";
+                }
+                else
+                {
+                    GameMain.Server.ShowLagDiagnosticsButton.Text = "LagProfiler: On";
+                    GameMain.Server.ShowLagDiagnosticsButton.ToolTip = "Turns on the lag profiling information.";
+                }
+                GameMain.Server.ShowNetStatsButton.Text = "NetStats: On";
+                GameMain.Server.ShowNetStatsButton.ToolTip = "Turns on the netstats screen which shows the latencies and IP Addresses of connections.";
+            }));
+#endif
+            commands.Add(new Command("nilmodreload", CommandType.Generic, "nilmodreload: Reloads then saves NilMod Settings during runtime, good for tweaking mid-round!", (string[] args) =>
+            {
+                //If this is a client
+                if (GameMain.Client != null)
+                {
+                    //DebugConsole.NewMessage("Clients may not use this command even if the server allows its usage.", Color.Red);
+                    return;
+                }
+
+                //Single player or server
+                GameMain.NilMod.Load(false);
+
+                //If this is a server
+                if(GameMain.Server != null)
+                {
+                    if(GameMain.Server.ConnectedClients.Count > 0)
+                    {
+                        int nilModClientCounter = 0;
+                        for (int i = 0; i < GameMain.Server.ConnectedClients.Count; i++)
+                        {
+                            if(GameMain.Server.ConnectedClients[i].IsNilModClient)
+                            {
+                                GameMain.Server.ConnectedClients[i].RequiresNilModSync = true;
+                                //Have the packets to send out not all in the same update for each nilmodclient
+                                GameMain.Server.ConnectedClients[i].NilModSyncResendTimer = NilMod.SyncResendInterval + (nilModClientCounter * 0.03f);
+                                nilModClientCounter += 1;
+                            }
+                        }
+                    }
+                }
+            }));
+
+            commands.Add(new Command("nilmodreset", CommandType.Generic, "nilmodreset: Resets NilMod Settings during runtime (Does not save), used to get default barotrauma setup.", (string[] args) =>
+            {
+                //This is a client
+                if (GameMain.Client != null) return;
+
+                GameMain.NilMod.ResetToDefault();
+            }));
+
+            commands.Add(new Command("nilmodsave", CommandType.Generic, "nilmodsave: Saves the current NilMod settings without loading them.", (string[] args) =>
+            {
+                //This is a client
+                if (GameMain.Client != null) return;
+
+                GameMain.NilMod.Save();
+            }));
+
+            commands.Add(new Command("nilmodreloadvpn|reloadvpn|nilmodreloadvpnblacklist|reloadvpnblacklist", CommandType.Generic, "nilmodreloadvpn|reloadvpn: Reloads the VPN Blacklist", (string[] args) =>
+            {
+                if(GameMain.NilMod.EnableVPNBanlist && NilMod.NilModVPNBanlist != null)
+                {
+                    NilMod.NilModVPNBanlist.LoadVPNBans();
+                }
+            }));
+
+            commands.Add(new Command("listcreatures", CommandType.Character, "listcreatures: A command that displays all living none-player controlled creatures on the map, dead or alive.", (string[] args) =>
+            {
+                Dictionary<string, int> creaturecount = new Dictionary<string, int>();
+                foreach (Character c in Character.CharacterList)
+                {
+                    //Only count for this one ENEMY AIs
+                    //if (!(c.AIController is EnemyAIController)) continue;
+
+                    //Above code didn't seem so good, lets simply not check Human AI's and remote players instead.
+                    //if (!c.IsRemotePlayer && !(c.AIController is HumanAIController))
+                    if (!c.IsRemotePlayer && !(c.AIController is HumanAIController))
+                    {
+                        if (creaturecount.ContainsKey(c.Name.ToLowerInvariant()))
+                        {
+                            creaturecount[c.Name.ToLowerInvariant()] += 1;
+                        }
+                        else
+                        {
+                            creaturecount.Add(c.Name.ToLowerInvariant(), 1);
+                        }
+                    }
+                }
+                if (creaturecount.Count() != 0)
+                {
+                    foreach (KeyValuePair<string, int> countof in creaturecount)
+                    {
+                        NewMessage("AIEntity: \"" + countof.Key.ToString() + "\" Count: " + countof.Value.ToString(), Color.White);
+                    }
+                }
+                else
+                {
+                    NewMessage("No creatures could be found (Has the round started yet?)", Color.Red);
+                }
+            }));
+
+            commands.Add(new Command("listplayers", CommandType.Character, "listplayers: Used to get the count of players that exist.", (string[] args) =>
+            {
+                Dictionary<string, int> playercount = new Dictionary<string, int>();
+                foreach (Character c in Character.CharacterList)
+                {
+                    //Only count for this one PLAYERS
+                    if (c.IsRemotePlayer)
+                    {
+                        if (playercount.ContainsKey(c.Name.ToLowerInvariant()))
+                        {
+                            playercount[c.Name.ToLowerInvariant()] += 1;
+                        }
+                        else
+                        {
+                            playercount.Add(c.Name.ToLowerInvariant(), 1);
+                        }
+                    }
+                }
+
+                foreach (KeyValuePair<string, int> countof in playercount)
+                {
+                    //var playerlistchar = FindMatchingCharacter(countof.Key.ToString() + countof.Value.ToString(),false);
+
+                    NewMessage("Player: \"" + countof.Key.ToString() + "\" Count: " + countof.Value.ToString(), Color.White);
+
+                }
+            }));
+
+            commands.Add(new Command("finditem", CommandType.Spawning, "finditem [Partial Item Name]: Searches all possible spawnable items based off what you type, leave blank to list everything.", (string[] args) =>
+            {
+                List<ItemPrefab> FoundItems = new List<ItemPrefab>();
+                string SearchItemName = null;
+                if (args.Length < 1)
+                {
+                    SearchItemName = "";
+                }
+                else
+                {
+                    SearchItemName = string.Join(" ", args.Take(args.Length)).ToLowerInvariant();
+                }
+
+                //Find all the unique items and populate the list
+                foreach (MapEntityPrefab searchitem in MapEntityPrefab.List)
+                {
+                    if (searchitem.Name.ToLowerInvariant().Contains(SearchItemName.ToLowerInvariant())
+                    || searchitem.Name.ToLowerInvariant() == SearchItemName.ToLowerInvariant()
+                    || searchitem.Category.ToString().ToLowerInvariant().Contains(SearchItemName.ToLowerInvariant())
+                    || searchitem.Category.ToString().ToLowerInvariant() == SearchItemName.ToLowerInvariant()
+                    )
+                    {
+                        var itemPrefab = searchitem as ItemPrefab;
+                        if (searchitem is ItemPrefab && searchitem.Name != null) FoundItems.Add(itemPrefab);
+                    }
+                }
+                List<string> FoundItemsText = new List<string>();
+                foreach(ItemPrefab item in FoundItems)
+                {
+                    FoundItemsText.Add(item.Category + " - " + @"""" + item.Name + @"""");
+                }
+                //Sort the list
+                FoundItemsText.Sort();
+                //Now Display them in alphabetical order
+                foreach (string itemtext in FoundItemsText)
+                {
+                    DebugConsole.NewMessage(itemtext, Color.White);
+                }
+            }));
+
+            commands.Add(new Command("itemdetail", CommandType.Debug, "itemdetail [Partial Item Name]: Searches all possible spawnable items based off what you type, leave blank to list everything.", (string[] args) =>
+            {
+                //List<ItemPrefab> FoundItems = new List<ItemPrefab>();
+                string SearchItemName = null;
+                if (args.Length < 1)
+                {
+                    SearchItemName = "";
+                }
+                else
+                {
+                    SearchItemName = string.Join(" ", args.Take(args.Length)).ToLowerInvariant();
+                }
+
+                if (SearchItemName == "")
+                {
+                    return;
+                }
+
+                Boolean found = false;
+
+                //Find all the unique items and populate the list
+                foreach (MapEntityPrefab searchitem in MapEntityPrefab.List)
+                {
+                    if (searchitem.Name.ToLowerInvariant() == SearchItemName.ToLowerInvariant())
+                    {
+                        if (searchitem is ItemPrefab)
+                        {
+                            string temp;
+                            var itemPrefab = searchitem as ItemPrefab;
+                            DebugConsole.NewMessage(@"Found Matching item: """ + itemPrefab.Name + @""".", Color.Cyan);
+                            DebugConsole.NewMessage("Category: " + itemPrefab.Category, Color.Cyan);
+
+                            if (itemPrefab.Aliases != null && itemPrefab.Aliases.Count() > 0)
+                            {
+                                temp = "";
+                                foreach (var Alias in itemPrefab.Aliases)
+                                {
+                                    temp = temp + ", " + Alias.ToString();
+                                }
+
+                                DebugConsole.NewMessage("Aliases: " + temp.Substring(2).Trim(), Color.Cyan);
+                            }
+                            else
+                            {
+                                DebugConsole.NewMessage("Item has no Aliases.", Color.Cyan);
+                            }
+                            
+                            DebugConsole.NewMessage("Description: " + itemPrefab.Description, Color.Cyan);
+
+                            if (itemPrefab.Tags != null && itemPrefab.Tags.Count() > 0)
+                            {
+                                temp = "";
+                                foreach (var tag in itemPrefab.Tags)
+                                {
+                                    temp = temp + ", " + tag.ToString();
+                                }
+
+                                DebugConsole.NewMessage("Tags: " + temp.Substring(2).Trim(), Color.Cyan);
+                            }
+                            else
+                            {
+                                DebugConsole.NewMessage("Item has no Tags.", Color.Cyan);
+                            }
+                            
+                            DebugConsole.NewMessage("Price: " + itemPrefab.Price, Color.Green);
+
+                            if (itemPrefab.DeconstructItems != null && itemPrefab.DeconstructItems.Count() > 0)
+                            {
+                                foreach (var deconstructitem in itemPrefab.DeconstructItems)
+                                {
+                                    DebugConsole.NewMessage(@"Deconstruct Item: """ + deconstructitem.ItemPrefabName.ToString() + @"""" + " Min: " + deconstructitem.MinCondition + ", Max: " + deconstructitem.MaxCondition, Color.Green);
+                                }
+                            }
+                            else
+                            {
+                                DebugConsole.NewMessage("Deconstructs into nothing.", Color.Green);
+                            }
+
+                            DebugConsole.NewMessage("CanSpriteFlipX: " + itemPrefab.CanSpriteFlipX, Color.Green);
+                            DebugConsole.NewMessage("CanUseOnSelf: " + itemPrefab.CanUseOnSelf, Color.Green);
+                            DebugConsole.NewMessage("ConfigFile: " + itemPrefab.ConfigFile, Color.Green);
+                            DebugConsole.NewMessage("DeconstructTime: " + itemPrefab.DeconstructTime.ToString(), Color.Green);
+                            DebugConsole.NewMessage("FireProof: " + itemPrefab.FireProof, Color.Green);
+                            DebugConsole.NewMessage("FocusOnSelected: " + itemPrefab.FocusOnSelected, Color.Green);
+                            DebugConsole.NewMessage("Health: " + itemPrefab.Health, Color.Green);
+                            DebugConsole.NewMessage("ImpactTolerance: " + itemPrefab.ImpactTolerance, Color.Green);
+                            DebugConsole.NewMessage("Indestructible: " + itemPrefab.Indestructible, Color.Green);
+                            DebugConsole.NewMessage("InteractDistance: " + itemPrefab.InteractDistance, Color.Green);
+                            DebugConsole.NewMessage("InteractPriority: " + itemPrefab.InteractPriority, Color.Green);
+                            DebugConsole.NewMessage("InteractThroughWalls: " + itemPrefab.InteractThroughWalls, Color.Green);
+                            DebugConsole.NewMessage("Linkable: " + itemPrefab.Linkable, Color.Green);
+                            DebugConsole.NewMessage("OffsetOnSelected: " + itemPrefab.OffsetOnSelected, Color.Green);
+                            DebugConsole.NewMessage("ResizeHorizontal: " + itemPrefab.ResizeHorizontal, Color.Green);
+                            DebugConsole.NewMessage("ResizeVertical: " + itemPrefab.ResizeVertical, Color.Green);
+                            DebugConsole.NewMessage("Size: " + itemPrefab.Size.ToString(), Color.Green);
+                            DebugConsole.NewMessage("SpriteColor: " + itemPrefab.SpriteColor.ToString(), Color.Green);
+                            if (itemPrefab.sprite != null)
+                            {
+                                DebugConsole.NewMessage("Sprite Depth: " + itemPrefab.sprite.Depth, Color.Green);
+                                DebugConsole.NewMessage("Sprite FilePath: " + itemPrefab.sprite.FilePath, Color.Green);
+
+                                DebugConsole.NewMessage("Sprite Origin: " + itemPrefab.sprite.Origin.ToString(), Color.Green);
+                                DebugConsole.NewMessage("Sprite Rotation: " + itemPrefab.sprite.rotation, Color.Green);
+                                DebugConsole.NewMessage("Sprite SourceRect: " + itemPrefab.sprite.SourceRect, Color.Green);
+                            }
+                            //Create a temporary item that can be removed after the checks are done
+                            Item tempitem = new Item(itemPrefab, new Vector2(300000, 300000), null);
+
+                            if (tempitem.AllowedSlots != null && tempitem.AllowedSlots.Count() > 0)
+                            {
+                                temp = "";
+                                foreach (var slot in tempitem.AllowedSlots)
+                                {
+                                    temp = temp + ", " + slot.ToString();
+                                }
+
+                                DebugConsole.NewMessage("AllowedSlots: " + temp.Substring(2).Trim(), Color.Yellow);
+                            }
+                            else
+                            {
+                                DebugConsole.NewMessage("Item has no AllowedSlots.", Color.Yellow);
+                            }
+
+                            if (tempitem.components != null && tempitem.components.Count() > 0)
+                            {
+                                foreach (var component in tempitem.components)
+                                {
+                                    if (component.SerializableProperties != null && component.SerializableProperties.Count() > 0)
+                                    {
+                                        DebugConsole.NewMessage("   - Component: " + component.Name, Color.Green);
+
+                                        foreach (var property in component.SerializableProperties)
+                                        {
+                                            //Don't read a list of serializableproperties, the base list seems to grab them too.
+                                            if (property.Key.ToLowerInvariant() == "serializableproperties") continue;
+
+                                            //Code for reading different property types differently : >
+                                            switch (property.Value.PropertyType.ToString().Split('`')[0])
+                                            {
+                                                //Lists probably need more code
+                                                case "System.Collections.Generic.List":
+                                                    //Switch for specific types of list reading
+                                                    switch (property.Value.PropertyType.ToString().Split('`')[1])
+                                                    {
+                                                        case "1[Barotrauma.DamageModifier]":
+                                                            List<DamageModifier> damagemodifiers = (List<DamageModifier>)property.Value.GetValue();
+                                                            DebugConsole.NewMessage("      - Propertylist: " + property.Key + " = " + damagemodifiers.Count() + " Items.", Color.Yellow);
+                                                            foreach (DamageModifier modifier in damagemodifiers)
+                                                            {
+                                                                DebugConsole.NewMessage(
+                                                                    "         - DamageModifier: Damage Type:" + modifier.DamageType
+                                                                    + ", Damage:" + modifier.DamageMultiplier
+                                                                    + "%, Bleed:" + modifier.BleedingMultiplier
+                                                                    + "%, ArmorSector: (" + Math.Round(modifier.ArmorSector.X, 1)
+                                                                    + "," + Math.Round(modifier.ArmorSector.Y, 1)
+                                                                    + "), Deflect:" + modifier.DeflectProjectiles, Color.Yellow);
+                                                            }
+                                                            break;
+                                                        case "1[Barotrauma.InvSlotType]":
+                                                        //break;
+                                                        case "1[Barotrauma.RelatedItem]":
+                                                        //break;
+                                                        default:
+                                                            //property.Value.PropertyType.ToString()
+                                                            DebugConsole.NewMessage("      - Property: " + property.Key + " = LIST: " + property.Value.PropertyType.ToString().Split('`')[1] + " reading is Unimplemented.", Color.IndianRed);
+                                                            break;
+                                                    }
+                                                    /*
+                                                    List<object> list = (List<object>)property.Value.GetValue();
+                                                    if (list.Count() > 0)
+                                                    {
+                                                        foreach(string listitem in list)
+                                                        {
+                                                            DebugConsole.NewMessage(listitem.ToString(), Color.Yellow);
+                                                        }
+                                                    }
+                                                    */
+                                                    break;
+                                                case "System.Boolean":
+                                                    DebugConsole.NewMessage("      - Property: " + property.Key + " = " + property.Value.GetValue().ToString() + " (Bool)", Color.Yellow);
+                                                    break;
+                                                case "System.String":
+                                                    DebugConsole.NewMessage("      - Property: " + property.Key + @" = """ + property.Value.GetValue().ToString() + @""" (String)", Color.Yellow);
+                                                    break;
+                                                case "System.Single":
+                                                    DebugConsole.NewMessage("      - Property: " + property.Key + " = " + property.Value.GetValue().ToString() + " (Float)", Color.Yellow);
+                                                    break;
+                                                case "System.Int32":
+                                                    DebugConsole.NewMessage("      - Property: " + property.Key + " = " + property.Value.GetValue().ToString() + " (Int32)", Color.Yellow);
+                                                    break;
+                                                case "Microsoft.Xna.Framework.Vector2":
+                                                    Vector2 vector2value = (Vector2)property.Value.GetValue();
+                                                    DebugConsole.NewMessage("      - Property: " + property.Key + " = (" + vector2value.X + "," + vector2value.Y + ") (Vector2)", Color.Yellow);
+                                                    break;
+                                                case "Barotrauma.InputType":
+                                                    DebugConsole.NewMessage("      - Property: " + property.Key + " = " + property.Value.GetValue().ToString() + " (InputType)", Color.Yellow);
+                                                    break;
+                                                case "Barotrauma.Item":
+                                                    DebugConsole.NewMessage("      - Property: " + property.Key + " = " + property.Value.GetValue().ToString() + " (InputType)", Color.Yellow);
+                                                    break;
+                                                case "Barotrauma.Character":
+                                                    DebugConsole.NewMessage("      - Property: " + property.Key + " = " + " (Character - shouldn't be modified)", Color.Yellow);
+                                                    break;
+                                                default:
+                                                    DebugConsole.NewMessage("      - Property: " + property.Key + " = " + property.Value.PropertyType.ToString() + "(Reading not implemented yet).", Color.IndianRed);
+                                                    break;
+                                                    //DebugConsole.NewMessage("      - Property: " + property.Key + " = " + property.Value.ToString(), Color.Yellow);
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        DebugConsole.NewMessage("      - No Properties.", Color.Yellow);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                DebugConsole.NewMessage("Item has no components to list.", Color.Yellow);
+                            }
+
+                            tempitem.Remove();
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    DebugConsole.NewMessage(@"Item: """ + SearchItemName + @""" not found, performing search", Color.Red);
+                    DebugConsole.ExecuteCommand("finditem " + SearchItemName);
+                }
+            }));
+
+            commands.Add(new Command("debugarmor|debugarmour", CommandType.Debug, "debugarmor|debugarmour [Armour Value]: Shows a series of damage estimations for a lone modifier using nilmod/Vanilla armour calculation! - 1.0 by default is no damage and 0.5 is half (Configure nilmodsettings.xml to change behaviour!)", (string[] args) =>
+            {
+                float armouramount;
+
+                if (args.Length < 1)
+                {
+                    armouramount = 0f;
+                    GameMain.NilMod.TestArmour(armouramount);
+                }
+                else
+                {
+                    if (float.TryParse(args[0], out armouramount))
+                    {
+                        if (Convert.ToSingle(args[0]) >= 0f)
+                        {
+                            GameMain.NilMod.TestArmour(armouramount);
+                        }
+                        else
+                        {
+                            NewMessage("Command requires positive or 0 armour values.", Color.Red);
+                        }
+                    }
+                    else
+                    {
+                        NewMessage("Command only accepts decimal numerics.", Color.Red);
+                    }
+                }
+            }));
+
+            commands.Add(new Command("blankcommand", CommandType.DebugHide, "blankcommand: Does Nothing at all", (string[] args) =>
+            {
+                //Code
+            }));
+
+            commands.Add(new Command("listentityids", CommandType.Debug, "listentityids: Lists the IDs of all entities", (string[] args) =>
+            {
+                List<Entity> entitylist = Entity.GetEntityList();
+
+                for (int i = 0; i < entitylist.Count() - 1; i++)
+                {
+                    if (entitylist[i] != null)
+                    {
+                        if (entitylist[i] is Character)
+                        {
+                            DebugConsole.NewMessage("ID: " + entitylist[i].ID + " = " + entitylist[i].ToString(), Color.Aqua);
+                        }
+                    }
+                }
+            }));
+
+            commands.Add(new Command("togglecrush|toggleabyss", CommandType.GamePower, "togglecrush: Toggles the games abyss damage for all submarines.", (string[] args) =>
+            {
+                if (GameMain.Client != null) return;
+
+                GameMain.NilMod.DisableCrushDamage = !GameMain.NilMod.DisableCrushDamage;
+#if CLIENT
+                if (GameMain.Server != null)
+                {
+                    if (GameMain.NilMod.DisableCrushDamage)
+                    {
+                        GameMain.Server.ToggleCrushButton.Text = "DepthCrush: On";
+                        GameMain.Server.ToggleCrushButton.ToolTip = "Turns on Abyss Crushing damage to submarines.";
+                    }
+                    else
+                    {
+                        GameMain.Server.ToggleCrushButton.Text = "DepthCrush: Off";
+                        GameMain.Server.ToggleCrushButton.ToolTip = "Turns off Abyss Crushing damage to submarines.";
+                    }
+                }
+#endif
+                NewMessage(GameMain.NilMod.DisableCrushDamage ? "Abyss crush damage off" : "Abyss crush damage on", Color.White);
+            }));
+
+            commands.Add(new Command("listtraitor|listtraitors|traitorlist", CommandType.Network, "listtraitor: Sends to chat the current traitors, targets and their status.", (string[] args) =>
+            {
+                if (GameMain.Server == null || GameMain.Server.TraitorManager == null || GameMain.Server.TraitorManager.TraitorList.Count() < 1) return;
+
+                foreach(Traitor traitor in GameMain.Server.TraitorManager.TraitorList)
+                {
+                    if (traitor.Character == null) continue;
+                    if (traitor.TargetCharacter != null)
+                    {
+                        GameMain.NetworkMember.AddChatMessage(
+                            traitor.Character.LogName
+                            + (traitor.Character.IsDead ? " (Dead)" : " (Alive)")
+                            + " has target " + traitor.TargetCharacter.LogName
+                            + (traitor.TargetCharacter.IsDead ? " (Dead)" : " (Alive)"), ChatMessageType.Server);
+                    }
+                    else
+                    {
+                        GameMain.NetworkMember.AddChatMessage(
+                            traitor.Character.LogName
+                            + (traitor.Character.IsDead ? " (Dead)" : " (Alive)")
+                            + " and their target no longer exists", ChatMessageType.Server);
+                    }
+                }
+            },
+            null,
+            (Client senderClient, Vector2 cursorWorldPos, string[] args) =>
+            {
+                if (GameMain.Server.TraitorManager == null || GameMain.Server.TraitorManager.TraitorList.Count() < 1)
+                {
+                    GameMain.Server.SendConsoleMessage("The server has no traitors this round.", senderClient);
+                }
+                else
+                {
+                    foreach (Traitor traitor in GameMain.Server.TraitorManager.TraitorList)
+                    {
+                        if (traitor.Character != null)
+                        {
+                            if (traitor.TargetCharacter != null)
+                            {
+                                var chatMsg = ChatMessage.Create(
+                                    null,
+                                    traitor.Character.LogName
+                                    + (traitor.Character.IsDead ? " (Dead)" : " (Alive)")
+                                    + " has target " + traitor.TargetCharacter.LogName
+                                    + (traitor.TargetCharacter.IsDead ? " (Dead)" : " (Alive)"),
+                                    (ChatMessageType)ChatMessageType.Server,
+                                    null);
+
+                                GameMain.Server.SendChatMessage(chatMsg, senderClient);
+                            }
+                            else
+                            {
+                                var chatMsg = ChatMessage.Create(
+                                    null,
+                                    traitor.Character.LogName
+                                    + (traitor.Character.IsDead ? " (Dead)" : " (Alive)")
+                                    + " and their target no longer exists",
+                                    (ChatMessageType)ChatMessageType.Server,
+                                    null);
+
+                                GameMain.Server.SendChatMessage(chatMsg, senderClient);
+                            }
+                        }
+                        else
+                        {
+
+                        }
+                    }
+                }
+            },
+            null));
         }
     }
 }

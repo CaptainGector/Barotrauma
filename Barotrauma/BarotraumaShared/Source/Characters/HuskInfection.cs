@@ -72,17 +72,23 @@ namespace Barotrauma
 
             float prevTimer = IncubationTimer;
             state = InfectionState.Dormant;
+
             IncubationTimer += deltaTime / IncubationDuration;
+
+            character.AddDamage(CauseOfDeath.Husk, GameMain.NilMod.PlayerHuskInfectedDrain * deltaTime, null, "Husk Infection");
         }
 
         private void UpdateTransitionState(float deltaTime, Character character)
         {
             if (state != InfectionState.Transition)
             {
-                DeactivateHusk(character);                
+                DeactivateHusk(character);
             }
 
-            IncubationTimer += deltaTime / IncubationDuration;            
+            IncubationTimer += deltaTime / IncubationDuration;
+
+            character.AddDamage(CauseOfDeath.Husk, GameMain.NilMod.PlayerHuskInfectedDrain * deltaTime, null, "Husk Infection");
+
             state = InfectionState.Transition;
         }
 
@@ -94,18 +100,21 @@ namespace Barotrauma
                 state = InfectionState.Active;
             }
 
-            character.AddDamage(CauseOfDeath.Husk, 0.5f * deltaTime, null);
+            character.AddDamage(CauseOfDeath.Husk, GameMain.NilMod.PlayerHuskIncurableDrain * deltaTime, null, "Husk Infection");
+            //character.AddDamage(CauseOfDeath.Husk, 0.5f * deltaTime, null);
         }
+
 
         private void ActivateHusk(Character character)
         {
+            if (GameMain.Server != null) GameMain.Server.ServerLog.WriteLine(character.Name + " Maxed Husk infection!", Networking.ServerLog.MessageType.Husk);
             character.NeedsAir = false;
             AttachHuskAppendage(character);
         }
 
         private void AttachHuskAppendage(Character character)
         {
-            //husk appendage already created, don't do anything
+            //husk appendage already created, don't do anything 
             if (huskAppendage != null) return;
 
             XDocument doc = XMLExtensions.TryLoadXml(Path.Combine("Content", "Characters", "Human", "huskappendage.xml"));
@@ -136,7 +145,7 @@ namespace Barotrauma
             huskAppendage = new Limb(character, limbElement);
             huskAppendage.body.Submarine = character.Submarine;
             huskAppendage.body.SetTransform(torso.SimPosition, torso.Rotation);
-            
+
             character.AnimController.AddLimb(huskAppendage);
             character.AnimController.AddJoint(jointElement);
         }
@@ -174,8 +183,16 @@ namespace Barotrauma
                     if (limbJoint.IsSevered) return;
                 }
             }
-            
-            //create the AI husk in a coroutine to ensure that we don't modify the character list while enumerating it
+
+            //Nilmod Deactivate players turning into husks on death optionally
+            if (!GameMain.NilMod.PlayerHuskAiOnDeath)
+            {
+                if (GameMain.Server != null) GameMain.Server.ServerLog.WriteLine(character.Name + " Died husk infected but did not convert.", Networking.ServerLog.MessageType.Husk);
+                return;
+            }
+
+            //create the AI husk in a coroutine to ensure that we don't modify the character list while enumerating it 
+            //CoroutineManager.StartCoroutine(CreateAIHusk(character));
             CoroutineManager.StartCoroutine(CreateAIHusk(character));
         }
 
@@ -184,6 +201,7 @@ namespace Barotrauma
             character.Enabled = false;
             Entity.Spawner.AddToRemoveQueue(character);
 
+            if (GameMain.Server != null) GameMain.Server.ServerLog.WriteLine(character.Name + " Converted into an AI Husk!", Networking.ServerLog.MessageType.Husk);
             var characterFiles = GameMain.SelectedPackage.GetFilesOfType(ContentType.Character);
             var configFile = characterFiles.Find(f => Path.GetFileNameWithoutExtension(f) == "humanhusk");
 
@@ -215,6 +233,11 @@ namespace Barotrauma
             {
                 if (character.Inventory.Items[i] == null) continue;
                 husk.Inventory.TryPutItem(character.Inventory.Items[i], i, true, false, null);
+            }
+
+            if(husk.AnimController.Limbs == null || husk.AnimController.Limbs.Length < 1)
+            {
+                DebugConsole.ThrowError("Error in Husk Creation, Character " + husk.Name + " has null or no limbs on creation!");
             }
 
             yield return CoroutineStatus.Success;

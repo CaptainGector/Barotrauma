@@ -451,7 +451,6 @@ namespace Barotrauma
                 var connectionElement = new XElement("connection", new XAttribute("i", i));
                 if (connections[i].MissionsCompleted > 0) connectionElement.Add(new XAttribute("m", connections[i].MissionsCompleted));
                 mapElement.Add(connectionElement);
-                
             }
 
             element.Add(mapElement);
@@ -523,6 +522,7 @@ namespace Barotrauma
         public LocationConnection(Location location1, Location location2)
         {
             locations = new Location[] { location1, location2 };
+
             MissionsCompleted = 0;
         }
 

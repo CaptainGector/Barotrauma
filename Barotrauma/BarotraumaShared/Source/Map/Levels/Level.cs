@@ -669,7 +669,7 @@ namespace Barotrauma
         {
             BottomPos = generationParams.SeaFloorDepth;
             SeaFloorTopPos = BottomPos;
-            
+
             bottomPositions = new List<Vector2>();
             bottomPositions.Add(new Vector2(0, BottomPos));
 
@@ -699,7 +699,7 @@ namespace Barotrauma
             }
 
             SeaFloorTopPos = bottomPositions.Max(p => p.Y);
-            
+
             extraWalls = new LevelWall[] { new LevelWall(bottomPositions, new Vector2(0.0f, -2000.0f), backgroundColor, this) };
 
             BottomBarrier = BodyFactory.CreateEdge(GameMain.World,

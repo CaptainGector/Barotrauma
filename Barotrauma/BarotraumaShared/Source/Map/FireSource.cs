@@ -11,8 +11,10 @@ namespace Barotrauma
 {
     partial class FireSource
     {
-        const float OxygenConsumption = 50.0f;
-        const float GrowSpeed = 5.0f;
+        //public static float OxygenConsumption = 50.0f;
+        public static float GrowSpeed = 5.0f;
+        private Vector2 LastSentSize;
+        private float SyncTimer;
 
         private int basicSoundIndex, largeSoundIndex;
 
@@ -60,7 +62,7 @@ namespace Barotrauma
 
         public float DamageRange
         {
-            get { return (float)Math.Sqrt(size.X) * 20.0f; }
+            get {  return (float)Math.Sqrt(size.X) * 20.0f; }
         }
 
         public Hull Hull
@@ -92,6 +94,7 @@ namespace Barotrauma
 #endif
 
             size = new Vector2(10.0f, 10.0f);
+            LastSentSize = size;
         }
 
         private void LimitSize()
@@ -156,11 +159,23 @@ namespace Barotrauma
 
             if (hull.WaterVolume > 0.0f) HullWaterExtinquish(deltaTime);
 
-            hull.Oxygen -= size.X * deltaTime * OxygenConsumption;
+            //hull.Oxygen -= size.X * deltaTime * OxygenConsumption;
+            hull.Oxygen -= size.X * deltaTime * GameMain.NilMod.FireOxygenConsumption;
 
             position.X -= GrowSpeed * growModifier * 0.5f * deltaTime;
 
-            size.X += GrowSpeed * growModifier * deltaTime;
+            if (growModifier > 0f)
+            {
+                position.X -= GameMain.NilMod.FireGrowthSpeed * growModifier * 0.5f * deltaTime;
+
+                size.X += GameMain.NilMod.FireGrowthSpeed * growModifier * deltaTime;
+            }
+            else
+            {
+                position.X -= GameMain.NilMod.FireShrinkSpeed * growModifier * 0.5f * deltaTime;
+
+                size.X += GameMain.NilMod.FireShrinkSpeed * growModifier * deltaTime;
+            }
             size.Y = MathHelper.Clamp(size.Y + GrowSpeed * growModifier * deltaTime, 10.0f, 50.0f);
 
             if (size.X > 50.0f)
@@ -174,14 +189,30 @@ namespace Barotrauma
 
             if (GameMain.Client != null) return;
 
-            if (size.X < 1.0f) Remove();
+
+
+            if (size.X < 1.0f)
+            {
+                Remove();
+                return;
+            }
+
+            SyncTimer += deltaTime;
+
+            //add in new fire syncing c:
+            if (GameMain.NilMod.SyncFireSizeChange && (GameMain.Server != null && (((size.X - LastSentSize.X) > 8f || (size.X - LastSentSize.X) < 8f)) || SyncTimer > GameMain.NilMod.FireSyncFrequency))
+            {
+                GameMain.Server.CreateEntityEvent(hull);
+                LastSentSize = size;
+                SyncTimer = 0f;
+            }
         }
 
         partial void UpdateProjSpecific(float growModifier);
 
         private void OnChangeHull(Vector2 pos, Hull particleHull)
         {
-            if (particleHull == hull || particleHull == null) return;
+            if (particleHull == hull || particleHull==null) return;
 
             //hull already has a firesource roughly at the particles position -> don't create a new one
             if (particleHull.FireSources.Find(fs => pos.X > fs.position.X - 100.0f && pos.X < fs.position.X + fs.size.X + 100.0f) != null) return;
@@ -200,21 +231,40 @@ namespace Barotrauma
 
                 if (!IsInDamageRange(c, DamageRange)) continue;
 
-                float dmg = (float)Math.Sqrt(size.X) * deltaTime / c.AnimController.Limbs.Length;
+
+                float dmg = (((float)Math.Sqrt(size.X) * deltaTime * GameMain.NilMod.FireCharDamageMultiplier) / c.AnimController.Limbs.Length);
                 foreach (Limb limb in c.AnimController.Limbs)
                 {
-                    c.AddDamage(limb.SimPosition, DamageType.Burn, dmg, 0, 0, false);
+                    if (GameMain.NilMod.FireUseRangedDamage)
+                    {
+                        float range = DamageRange * GameMain.NilMod.FireCharRangeMultiplier;
+
+                        float closestdistance = Math.Abs(limb.Position.X - position.X) / range;
+                        if (closestdistance > Math.Abs(limb.Position.X - (position.X + size.X)) / range) closestdistance = Math.Abs((limb.Position.X - (position.X + size.X)) / range);
+                        if (limb.Position.X > position.X && limb.Position.X < (position.X + size.X)) closestdistance = 0f;
+
+                        c.AddDamage(limb.SimPosition, DamageType.Burn, (dmg * Math.Min(Math.Max(((GameMain.NilMod.FireRangedDamageStrength) - (closestdistance * (GameMain.NilMod.FireRangedDamageStrength))), GameMain.NilMod.FireRangedDamageMinMultiplier), GameMain.NilMod.FireRangedDamageMaxMultiplier)), 0, 0, false, 0f, null, "Fire");
+                    }
+                    else
+                    {
+                        c.AddDamage(limb.SimPosition, DamageType.Burn, dmg, 0, 0, false, 0f, null, "Fire");
+                    }
                 }
             }
         }
 
         public bool IsInDamageRange(Character c, float damageRange)
         {
-            if (c.Position.X < position.X - damageRange || c.Position.X > position.X + size.X + damageRange) return false;
+            float range = damageRange * GameMain.NilMod.FireCharRangeMultiplier;
+            if (c.Position.X < position.X - range || c.Position.X > position.X + size.X + range) return false;
             if (c.Position.Y < position.Y - size.Y || c.Position.Y > hull.Rect.Y) return false;
 
+            //if (c.Position.X < position.X - damageRange || c.Position.X > position.X + size.X + damageRange) return false;
+            //if (c.Position.Y < position.Y - size.Y || c.Position.Y > hull.Rect.Y) return false;
             return true;
         }
+
+
 
         public bool IsInDamageRange(Vector2 worldPosition, float damageRange)
         {
@@ -224,6 +274,7 @@ namespace Barotrauma
             return true;
         }
 
+
         private void DamageItems(float deltaTime)
         {
             if (size.X <= 0.0f || GameMain.Client != null) return;
@@ -232,8 +283,8 @@ namespace Barotrauma
             {
                 if (item.CurrentHull != hull || item.FireProof || item.Condition <= 0.0f) continue;
 
-                //don't apply OnFire effects if the item is inside a fireproof container
-                //(or if it's inside a container that's inside a fireproof container, etc)
+                //don't apply OnFire effects if the item is inside a fireproof container 
+                //(or if it's inside a container that's inside a fireproof container, etc) 
                 Item container = item.Container;
                 while (container != null)
                 {
@@ -241,7 +292,7 @@ namespace Barotrauma
                     container = container.Container;
                 }
 
-                float range = (float)Math.Sqrt(size.X) * 10.0f;
+                float range = ((float)Math.Sqrt(size.X) * 10.0f) * GameMain.NilMod.FireItemRangeMultiplier;
                 if (item.Position.X < position.X - range || item.Position.X > position.X + size.X + range) continue;
                 if (item.Position.Y < position.Y - size.Y || item.Position.Y > hull.Rect.Y) continue;
 
@@ -256,7 +307,7 @@ namespace Barotrauma
         private void HullWaterExtinquish(float deltaTime)
         {
             //the higher the surface of the water is relative to the firesource, the faster it puts out the fire 
-            float extinquishAmount = (hull.Surface - (position.Y - size.Y)) * deltaTime;
+            float extinquishAmount = ((hull.Surface - (position.Y - size.Y)) * deltaTime) * GameMain.NilMod.FireWaterExtinguishMultiplier;
 
             if (extinquishAmount < 0.0f) return;
 
@@ -265,7 +316,7 @@ namespace Barotrauma
             for (int i = 0; i < steamCount; i++)
             {
                 Vector2 spawnPos = new Vector2(
-                    WorldPosition.X + Rand.Range(0.0f, size.X),
+                    WorldPosition.X + Rand.Range(0.0f, size.X), 
                     WorldPosition.Y + 10.0f);
 
                 Vector2 speed = new Vector2((spawnPos.X - (WorldPosition.X + size.X / 2.0f)), (float)Math.Sqrt(size.X) * Rand.Range(20.0f, 25.0f));
@@ -284,7 +335,7 @@ namespace Barotrauma
 
             //evaporate some of the water
             hull.WaterVolume -= extinquishAmount;
-
+            
             if (GameMain.Client != null) return;
 
             if (size.X < 1.0f) Remove();
@@ -292,12 +343,13 @@ namespace Barotrauma
 
         public void Extinguish(float deltaTime, float amount)
         {
-            float extinquishAmount = amount * deltaTime;
+            float extinquishAmount = (amount * deltaTime) * GameMain.NilMod.FireToolExtinguishMultiplier;
 
 #if CLIENT
             float steamCount = Rand.Range(-5.0f, (float)Math.Sqrt(amount));
             for (int i = 0; i < steamCount; i++)
             {
+                //Vector2 spawnPos = new Vector2(pos.X + Rand.Range(-5.0f, 5.0f), Rand.Range(position.Y - size.Y, position.Y) + 10.0f); 
                 Vector2 spawnPos = new Vector2(Rand.Range(position.X, position.X + size.X), Rand.Range(position.Y - size.Y, position.Y) + 10.0f);
 
                 Vector2 speed = new Vector2((spawnPos.X - (position.X + size.X / 2.0f)), (float)Math.Sqrt(size.X) * Rand.Range(20.0f, 25.0f));
@@ -345,7 +397,7 @@ namespace Barotrauma
             foreach (Decal d in burnDecals)
             {
                 d.StopFadeIn();
-            }
+            }            
 #endif
 
             hull.RemoveFire(this);

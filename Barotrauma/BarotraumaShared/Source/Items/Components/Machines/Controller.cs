@@ -83,8 +83,8 @@ namespace Barotrauma.Items.Components
         public override void Update(float deltaTime, Camera cam) 
         {
             this.cam = cam;
-            
-            if (character == null 
+
+            if (character == null
                 || character.Removed
                 || character.SelectedConstruction != item
                 || !character.CanInteractWith(item))
@@ -177,7 +177,7 @@ namespace Barotrauma.Items.Components
             
             return true;
         }
-        
+
         public override bool SecondaryUse(float deltaTime, Character character = null)
         {
             if (this.character != character)
@@ -191,7 +191,7 @@ namespace Barotrauma.Items.Components
                 this.character = null;
                 return false;
             }
-            if (character == null) return false;     
+            if (character == null) return false;
 
             focusTarget = GetFocusTarget();
             if (focusTarget == null)
@@ -202,6 +202,8 @@ namespace Barotrauma.Items.Components
                 offset.Y = -offset.Y;
 
                 targetRotation = MathUtils.WrapAngleTwoPi(MathUtils.VectorToAngle(offset));
+
+                item.SendSignal(0, targetRotation.ToString(), "position_out", character);
                 return false;
             }
             
@@ -215,7 +217,7 @@ namespace Barotrauma.Items.Components
                 cam.OffsetAmount = MathHelper.Lerp(cam.OffsetAmount, (focusTarget as Item).Prefab.OffsetOnSelected, deltaTime * 10.0f);
             }
 #endif
-            
+
             if (!character.IsRemotePlayer || character.ViewTarget == focusTarget)
             {
                 Vector2 centerPos = new Vector2(item.WorldRect.Center.X, item.WorldRect.Center.Y);
@@ -234,6 +236,8 @@ namespace Barotrauma.Items.Components
                 offset.Y = -offset.Y;
 
                 targetRotation = MathUtils.WrapAngleTwoPi(MathUtils.VectorToAngle(offset));
+
+                item.SendSignal(0, targetRotation.ToString(), "position_out", character);
             }
 
             return true;
@@ -251,7 +255,7 @@ namespace Barotrauma.Items.Components
                     return item.LastSentSignalRecipients[i];
                 }
             }
-            
+
             return null;
         }
 
@@ -302,7 +306,7 @@ namespace Barotrauma.Items.Components
             }
             else
             {
-                character = activator;                    
+                character = activator;
                 IsActive = true;
             }
 

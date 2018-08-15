@@ -21,7 +21,11 @@ namespace Barotrauma
         public static FrameCounter FrameCounter;
 
         public static readonly Version Version = Assembly.GetEntryAssembly().GetName().Version;
-        
+
+        //NilMod Class
+        public static NilMod NilMod;
+        public static NilModLagDiagnostics NilModProfiler;
+
         public static GameScreen            GameScreen;
         public static MainMenuScreen        MainMenuScreen;
         public static LobbyScreen           LobbyScreen;
@@ -124,7 +128,7 @@ namespace Barotrauma
             GraphicsDeviceManager = new GraphicsDeviceManager(this);
 
             Window.Title = "Barotrauma";
-            
+
             Instance = this;
 
             Config = new GameSettings("config.xml");
@@ -134,7 +138,16 @@ namespace Barotrauma
                 Config.WasGameUpdated = false;
                 Config.Save("config.xml");
             }
-            
+
+            NilMod = new NilMod();
+            NilMod.Load();
+
+            NilModProfiler = new NilModLagDiagnostics();
+            NilModProfiler.InitTimers();
+
+            NilMod.NilModVPNBanlist = new VPNBanlist();
+            NilMod.NilModVPNBanlist.LoadVPNBans();
+
             ApplyGraphicsSettings();
 
             Content.RootDirectory = "Content";
@@ -145,7 +158,7 @@ namespace Barotrauma
 
             Timing.Accumulator = 0.0f;
             fixedTime = new GameTime();
-            
+
             World = new World(new Vector2(0, -9.82f));
             FarseerPhysics.Settings.AllowSleep = true;
             FarseerPhysics.Settings.ContinuousPhysics = false;
@@ -169,6 +182,12 @@ namespace Barotrauma
                 //let's do it manually
                 Window.Position = new Point((GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - GraphicsWidth) / 2,
                                             (GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - GraphicsHeight) / 2);
+
+                //NilMod Set window start position
+                if (GameMain.NilMod.UseStartWindowPosition)
+                {
+                    Window.Position = new Point(GameMain.NilMod.StartXPos, GameMain.NilMod.StartYPos);
+                }
             }
 
             GraphicsDeviceManager.PreferredBackBufferWidth = GraphicsWidth;
@@ -220,8 +239,6 @@ namespace Barotrauma
             GraphicsWidth = GraphicsDevice.Viewport.Width;
             GraphicsHeight = GraphicsDevice.Viewport.Height;
 
-            Sound.Init();
-
             ConvertUnits.SetDisplayUnitToSimUnitRatio(Physics.DisplayToSimRation);
 
             spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -229,6 +246,23 @@ namespace Barotrauma
 
             loadingScreenOpen = true;
             TitleScreen = new LoadingScreen(GraphicsDevice);
+
+            GameMain.NilMod.FetchExternalIP();
+
+            if (GameMain.NilMod.StartToServer)
+            {
+                LoadingScreen.loadType = LoadType.Server;
+
+                LoadingScreen.ServerName = GameMain.NilMod.ServerName;
+                LoadingScreen.ServerPort = GameMain.NilMod.ServerPort.ToString();
+                LoadingScreen.PublicServer = GameMain.NilMod.PublicServer;
+                LoadingScreen.MaxPlayers = GameMain.NilMod.MaxPlayers.ToString();
+                LoadingScreen.Password = GameMain.NilMod.UseServerPassword ? GameMain.NilMod.ServerPassword : "";
+            }
+            else
+            {
+                LoadingScreen.loadType = LoadType.Mainmenu;
+            }
 
             loadingCoroutine = CoroutineManager.StartCoroutine(Load());
         }
@@ -285,7 +319,7 @@ namespace Barotrauma
             Hull.renderer = new WaterRenderer(base.GraphicsDevice, Content);
             TitleScreen.LoadState = 1.0f;
         yield return CoroutineStatus.Running;
-
+            Sound.Init();
             GUI.LoadContent();
             TitleScreen.LoadState = 2.0f;
         yield return CoroutineStatus.Running;
@@ -345,15 +379,19 @@ namespace Barotrauma
             CharacterEditorScreen   =   new CharacterEditorScreen();
             ParticleEditorScreen    =   new ParticleEditorScreen();
 
-        yield return CoroutineStatus.Running;
+            GameSession.inGameInfo = new InGameInfo();
+
+            yield return CoroutineStatus.Running;
 
             ParticleManager = new ParticleManager(GameScreen.Cam);
             ParticleManager.LoadPrefabs();
             DecalManager = new DecalManager();
-        yield return CoroutineStatus.Running;
+            yield return CoroutineStatus.Running;
 
             LocationType.Init();
             MainMenuScreen.Select();
+
+            NilMod.GameInitialize(true);
 
             TitleScreen.LoadState = 100.0f;
             hasLoaded = true;
@@ -361,7 +399,17 @@ namespace Barotrauma
             {
                 DebugConsole.NewMessage("LOADING COROUTINE FINISHED", Color.Lime);
             }
-        yield return CoroutineStatus.Success;
+
+            //Nilmod Server Start code
+            HandleParameters();
+            if (NilMod.StartToServer)
+            {
+                Autostart();
+            }
+
+            GameMain.NilMod.SuccesfulStart = true;
+
+            yield return CoroutineStatus.Success;
 
         }
 
@@ -387,25 +435,210 @@ namespace Barotrauma
 
             bool paused = true;
 
+            if (GameMain.NilMod.UseExperimentalFPSLagPrevention && !loadingScreenOpen)
+            {
+                if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 2)
+                {
+                    Timing.Step = 1.0 / 8.0;
+                    FarseerPhysics.Settings.VelocityIterations = 10;
+                    FarseerPhysics.Settings.PositionIterations = 4;
+                    FarseerPhysics.Settings.TOIPositionIterations = 25;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 10;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 4)
+                {
+                    Timing.Step = 1.0 / 10.0;
+                    FarseerPhysics.Settings.VelocityIterations = 10;
+                    FarseerPhysics.Settings.PositionIterations = 4;
+                    FarseerPhysics.Settings.TOIPositionIterations = 25;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 10;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 6)
+                {
+                    Timing.Step = 1.0 / 12.0;
+                    FarseerPhysics.Settings.VelocityIterations = 10;
+                    FarseerPhysics.Settings.PositionIterations = 4;
+                    FarseerPhysics.Settings.TOIPositionIterations = 25;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 10;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 8)
+                {
+                    Timing.Step = 1.0 / 15.0;
+                    FarseerPhysics.Settings.VelocityIterations = 9;
+                    FarseerPhysics.Settings.PositionIterations = 4;
+                    FarseerPhysics.Settings.TOIPositionIterations = 22;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 9;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 10)
+                {
+                    Timing.Step = 1.0 / 20.0;
+                    FarseerPhysics.Settings.VelocityIterations = 9;
+                    FarseerPhysics.Settings.PositionIterations = 4;
+                    FarseerPhysics.Settings.TOIPositionIterations = 22;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 9;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 12)
+                {
+                    Timing.Step = 1.0 / 25.0;
+                    FarseerPhysics.Settings.VelocityIterations = 9;
+                    FarseerPhysics.Settings.PositionIterations = 4;
+                    FarseerPhysics.Settings.TOIPositionIterations = 22;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 9;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 14)
+                {
+                    Timing.Step = 1.0 / 30.0;
+                    FarseerPhysics.Settings.VelocityIterations = 8;
+                    FarseerPhysics.Settings.PositionIterations = 3;
+                    FarseerPhysics.Settings.TOIPositionIterations = 20;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 8;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 16)
+                {
+                    Timing.Step = 1.0 / 35.0;
+                    FarseerPhysics.Settings.VelocityIterations = 8;
+                    FarseerPhysics.Settings.PositionIterations = 3;
+                    FarseerPhysics.Settings.TOIPositionIterations = 20;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 8;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 18)
+                {
+                    Timing.Step = 1.0 / 40.0;
+                    FarseerPhysics.Settings.VelocityIterations = 8;
+                    FarseerPhysics.Settings.PositionIterations = 3;
+                    FarseerPhysics.Settings.TOIPositionIterations = 20;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 8;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 20)
+                {
+                    Timing.Step = 1.0 / 45.0;
+                    FarseerPhysics.Settings.VelocityIterations = 8;
+                    FarseerPhysics.Settings.PositionIterations = 3;
+                    FarseerPhysics.Settings.TOIPositionIterations = 20;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 8;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 22)
+                {
+                    Timing.Step = 1.0 / 50.0;
+                    FarseerPhysics.Settings.VelocityIterations = 8;
+                    FarseerPhysics.Settings.PositionIterations = 3;
+                    FarseerPhysics.Settings.TOIPositionIterations = 20;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 8;
+                }
+                else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 25)
+                {
+                    Timing.Step = 1.0 / 55.0;
+                    FarseerPhysics.Settings.VelocityIterations = 8;
+                    FarseerPhysics.Settings.PositionIterations = 3;
+                    FarseerPhysics.Settings.TOIPositionIterations = 20;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 8;
+                }
+                else
+                {
+                    Timing.Step = 1.0 / 60.0;
+                    FarseerPhysics.Settings.VelocityIterations = 8;
+                    FarseerPhysics.Settings.PositionIterations = 3;
+                    FarseerPhysics.Settings.TOIPositionIterations = 20;
+                    FarseerPhysics.Settings.TOIVelocityIterations = 8;
+                }
+            }
+            else
+            {
+                Timing.Step = 1.0 / 60.0;
+                FarseerPhysics.Settings.VelocityIterations = 8;
+                FarseerPhysics.Settings.PositionIterations = 3;
+                FarseerPhysics.Settings.TOIPositionIterations = 20;
+                FarseerPhysics.Settings.TOIVelocityIterations = 8;
+            }
+
             while (Timing.Accumulator >= Timing.Step)
             {
+                NilModProfiler.SWMainUpdateLoop.Start();
                 fixedTime.IsRunningSlowly = gameTime.IsRunningSlowly;
                 TimeSpan addTime = new TimeSpan(0, 0, 0, 0, 16);
+
+                if (GameMain.NilMod.UseExperimentalFPSLagPrevention)
+                {
+                    if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 2)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 125);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 4)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 100);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 6)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 83);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 8)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 66);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 10)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 50);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 12)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 40);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 14)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 33);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 16)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 28);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 18)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 25);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 20)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 22);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 22)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 20);
+                    }
+                    else if ((int)GameMain.FrameCounter.CurrentFramesPerSecond <= 25)
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 18);
+                    }
+                    else
+                    {
+                        addTime = new TimeSpan(0, 0, 0, 0, 16);
+                    }
+                }
+
                 fixedTime.ElapsedGameTime = addTime;
                 fixedTime.TotalGameTime.Add(addTime);
                 base.Update(fixedTime);
-                
+
+                NilModProfiler.SWPlayerInput.Start();
                 if (WindowActive)
                 {
                     PlayerInput.Update(Timing.Step);
                 }
+                NilModProfiler.RecordPlayerInput();
 
                 if (loadingScreenOpen)
                 {
                     //reset accumulator if loading
                     // -> less choppy loading screens because the screen is rendered after each update
                     // -> no pause caused by leftover time in the accumulator when starting a new shift
-                    Timing.Accumulator = 0.0f;
+                    if (TitleScreen.LoadState >= 100f)
+                    {
+                        Timing.Accumulator = 0.0f;
+                        this.TargetElapsedTime = new TimeSpan(0, 0, 0, 0, 12);
+                    }
+                    else
+                    {
+                        Timing.Accumulator = Timing.Step * 1.99;
+                        this.TargetElapsedTime = new TimeSpan(0, 0, 0, 0, 1);
+                    }
 
                     if (TitleScreen.LoadState >= 100.0f && 
                         (!waitForKeyHit || PlayerInput.GetKeyboardState.GetPressedKeys().Length>0 || PlayerInput.LeftButtonClicked()))
@@ -420,7 +653,11 @@ namespace Barotrauma
                 }
                 else if (hasLoaded)
                 {
+                    NilMod.Update((float)Timing.Step);
+
+                    NilModProfiler.SWSoundPlayer.Start();
                     SoundPlayer.Update((float)Timing.Step);
+                    NilModProfiler.RecordSoundPlayer();
 
                     if (PlayerInput.KeyHit(Keys.Escape)) GUI.TogglePauseMenu();
 
@@ -442,26 +679,39 @@ namespace Barotrauma
                     DebugConsole.AddToGUIUpdateList();
                     GUIComponent.UpdateMouseOn();
 
+                    NilModProfiler.SWDebugConsole.Start();
                     DebugConsole.Update(this, (float)Timing.Step);
                     paused = paused || (DebugConsole.IsOpen && (NetworkMember == null || !NetworkMember.GameStarted));
-                    
+                    NilModProfiler.RecordDebugConsole();
+
                     if (!paused)
                     {
+                        NilModProfiler.SWGameScreen.Start();
                         Screen.Selected.Update(Timing.Step);
+                        NilModProfiler.RecordGameScreen();
                     }
 
                     if (NetworkMember != null)
                     {
+                        NilModProfiler.SWNetworkMember.Start();
                         NetworkMember.Update((float)Timing.Step);
+                        NilModProfiler.RecordNetworkMember();
                     }
 
+                    NilModProfiler.SWGUIUpdate.Start();
                     GUI.Update((float)Timing.Step);
+                    NilModProfiler.RecordGUIUpdate();
                 }
 
+                NilModProfiler.SWCoroutineManager.Start();
                 CoroutineManager.Update((float)Timing.Step, paused ? 0.0f : (float)Timing.Step);
+                NilModProfiler.RecordCoroutineManager();
 
                 Timing.Accumulator -= Timing.Step;
+                if(NilModProfiler.SWMainUpdateLoop.ElapsedTicks > 0) NilModProfiler.RecordMainLoopUpdate();
             }
+
+            GameMain.NilModProfiler.Update((float)Timing.Step);
 
             if (!paused) Timing.Alpha = Timing.Accumulator / Timing.Step;
         }
@@ -508,6 +758,101 @@ namespace Barotrauma
             if (NetworkMember != null) NetworkMember.Disconnect();
             if (GameSettings.SendUserStatistics) GameAnalytics.OnStop();
             base.OnExiting(sender, args);
+        }
+
+        //NilMod Handle Parameters
+        public void HandleParameters()
+        {
+
+            for (int i = 1; i <= Program.CommandLineArgs.GetUpperBound(0); i++)
+            {
+                //DebugConsole.NewMessage(Program.CommandLineArgs[i], Color.White);
+                switch (Program.CommandLineArgs[i].ToLowerInvariant())
+                {
+                    case "-startserver":
+                        //DebugConsole.NewMessage("-startserver", Color.White);
+                        Autostart();
+                        break;
+                    case "-test":
+                        Console.WriteLine("-test");
+                        break;
+                    case "-resolutionx":
+                        Console.WriteLine("-resolutionx");
+                        break;
+                    case "-resolutiony":
+                        Console.WriteLine("-resolutiony");
+                        break;
+                    default:
+                        //DebugConsole.NewMessage("Argument " + Program.CommandLineArgs[i] + " Not Recognized", Color.White);
+                        break;
+                }
+            }
+        }
+
+        //NilMod Autoserver start code
+        public void Autostart()
+        {
+            if (!NilMod.Skippedtoserver)
+            {
+                waitForKeyHit = false;
+                NilMod.Skippedtoserver = true;
+                GameMain.NetLobbyScreen = new NetLobbyScreen();
+
+                try
+                {
+                    GameMain.NetworkMember = new GameServer(GameMain.NilMod.ServerName,
+                                                            GameMain.NilMod.ServerPort,
+                                                            GameMain.NilMod.PublicServer,
+                                                            GameMain.NilMod.UseServerPassword ? "" : GameMain.NilMod.ServerPassword,
+                                                            GameMain.NilMod.UPNPForwarding,
+                                                            GameMain.NilMod.MaxPlayers);
+                }
+
+                catch (Exception e)
+                {
+                    DebugConsole.ThrowError("Failed to start server", e);
+                }
+
+                GameMain.NetLobbyScreen.IsServer = true;
+                GameMain.NetLobbyScreen.DefaultServerStartup();
+                waitForKeyHit = false;
+            }
+        }
+
+        public void AutoRestartServer(string name, int port, bool isPublic, string password, bool attemptUPnP, int maxPlayers, Lidgren.Network.NetServer prevserver = null, Lidgren.Network.NetPeerConfiguration prevconfig = null)
+        {
+            if (Server == null) return;
+            List<Client> PreviousClients = new List<Client>(GameMain.Server.ConnectedClients);
+            ushort LastUpdateID = GameMain.NetLobbyScreen.LastUpdateID += 1;
+
+            GameMain.Server.DisconnectRestart();
+            GameMain.NetworkMember = null;
+
+            waitForKeyHit = false;
+            NilMod.Skippedtoserver = true;
+            GameMain.NetLobbyScreen = new NetLobbyScreen();
+
+            try
+            {
+                GameMain.NetworkMember = new GameServer(name,
+                                                        port,
+                                                        isPublic,
+                                                        password,
+                                                        attemptUPnP,
+                                                        maxPlayers,
+                                                        prevserver,
+                                                        prevconfig);
+            }
+            catch (Exception e)
+            {
+                DebugConsole.ThrowError("Failed to start server", e);
+            }
+            
+            GameMain.NetLobbyScreen.IsServer = true;
+            GameMain.NetLobbyScreen.DefaultServerStartup();
+            waitForKeyHit = false;
+
+            if (GameMain.Server != null) GameMain.Server.AddRestartClients(PreviousClients, LastUpdateID);
         }
     }
 }

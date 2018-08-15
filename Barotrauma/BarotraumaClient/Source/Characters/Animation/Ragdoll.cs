@@ -81,7 +81,7 @@ namespace Barotrauma
             if (Limbs == null)
             {
                 DebugConsole.ThrowError("Failed to draw a ragdoll, limbs have been removed. Character: \"" + character.Name + "\", removed: " + character.Removed + "\n" + Environment.StackTrace);
-                GameAnalyticsManager.AddErrorEventOnce("Ragdoll.Draw:LimbsRemoved", 
+                GameAnalyticsManager.AddErrorEventOnce("Ragdoll.Draw:LimbsRemoved",
                     GameAnalyticsSDK.Net.EGAErrorSeverity.Error,
                     "Failed to draw a ragdoll, limbs have been removed. Character: \"" + character.Name + "\", removed: " + character.Removed + "\n" + Environment.StackTrace);
                 return;
@@ -140,7 +140,7 @@ namespace Barotrauma
             {
                 var edgeShape = outsideCollisionBlocker.FixtureList[0].Shape as FarseerPhysics.Collision.Shapes.EdgeShape;
                 Vector2 startPos = ConvertUnits.ToDisplayUnits(outsideCollisionBlocker.GetWorldPoint(edgeShape.Vertex1)) + currentHull.Submarine.Position;
-                Vector2 endPos = ConvertUnits.ToDisplayUnits(outsideCollisionBlocker.GetWorldPoint(edgeShape.Vertex2)) + currentHull.Submarine.Position;                
+                Vector2 endPos = ConvertUnits.ToDisplayUnits(outsideCollisionBlocker.GetWorldPoint(edgeShape.Vertex2)) + currentHull.Submarine.Position;
                 startPos.Y = -startPos.Y;
                 endPos.Y = -endPos.Y;
                 GUI.DrawLine(spriteBatch, startPos, endPos, Color.Gray, 0, 5);

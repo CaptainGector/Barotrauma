@@ -118,7 +118,7 @@ namespace Barotrauma
             }
 
             if (canOpenDoors && !character.LockHands) CheckDoorsInPath();
-            
+
             Vector2 pos = host.SimPosition;
 
             if (character != null && currentPath.CurrentNode != null)
@@ -131,7 +131,7 @@ namespace Barotrauma
                     }
                     else if (character.Submarine != currentPath.CurrentNode.Submarine)
                     {
-                        pos -= FarseerPhysics.ConvertUnits.ToSimUnits(currentPath.CurrentNode.Submarine.Position-character.Submarine.Position);
+                        pos -= FarseerPhysics.ConvertUnits.ToSimUnits(currentPath.CurrentNode.Submarine.Position - character.Submarine.Position);
                     }
                 }
 
@@ -145,7 +145,7 @@ namespace Barotrauma
                     currentPath.CurrentNode.Ladders.Item.TryInteract(character, false, true);
                 }
             }
-            
+
             var collider = character.AnimController.Collider;
 
             if (character.AnimController.Anim == AnimController.Animation.Climbing)
@@ -158,7 +158,7 @@ namespace Barotrauma
                 //at the same height as the waypoint
                 if (Math.Abs(collider.SimPosition.Y - currentPath.CurrentNode.SimPosition.Y) < (collider.height / 2 + collider.radius) * 1.25f)
                 {
-                    //climbing ladders -> don't move horizontally
+                    //climbing ladders -> don't move horizontally 
                     diff.X = 0.0f;
 
                     float heightFromFloor = character.AnimController.GetColliderBottom().Y - character.AnimController.FloorY;
@@ -166,11 +166,12 @@ namespace Barotrauma
                     {
                         diff.Y = Math.Max(diff.Y, 1.0f);
                     }
-                    
+
                     //we can safely skip to the next waypoint if the character is at a safe height above the floor,
                     //or if the next waypoint in the path is also on ladders
+
                     if ((heightFromFloor > 0.0f && heightFromFloor < collider.height * 1.5f) ||
-                        (currentPath.NextNode != null && currentPath.NextNode.Ladders != null))
+                            (currentPath.NextNode != null && currentPath.NextNode.Ladders != null))
                     {
                         if (currentPath.NextNode != null && currentPath.NextNode.Ladders == null)
                         {

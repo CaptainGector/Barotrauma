@@ -433,7 +433,7 @@ namespace Barotrauma.Networking
                 }
                 catch (Exception e)
                 {
-                    DebugConsole.ThrowError("Failed to delete file \"" + transfer.FilePath + "\" (" + e.Message + ")");
+                    DebugConsole.ThrowError("Failed to delete file \""+transfer.FilePath+"\" ("+e.Message+")");
                 }
             }
         }

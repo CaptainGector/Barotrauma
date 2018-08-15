@@ -23,7 +23,7 @@ namespace Barotrauma.Lights
                 IsHidden.RemoveWhere(ch => !list.Contains(ch));
             }
         }
-        
+
 
         public ConvexHullList(Submarine submarine)
         {
@@ -66,6 +66,7 @@ namespace Barotrauma.Lights
         {
             Pos = pos;
             WorldPos = pos;
+
             ConvexHull = convexHull;
         }
 
@@ -80,11 +81,11 @@ namespace Barotrauma.Lights
         public static List<ConvexHullList> HullLists = new List<ConvexHullList>();
         public static BasicEffect shadowEffect;
         public static BasicEffect penumbraEffect;
-        
+
         Segment[] segments = new Segment[4];
         SegmentPoint[] vertices = new SegmentPoint[4];
         SegmentPoint[] losVertices = new SegmentPoint[4];
-        
+
         private bool[] backFacing;
         private bool[] ignoreEdge;
 
@@ -250,8 +251,8 @@ namespace Barotrauma.Lights
 
             for (int i = 0; i < 4; i++)
             {
-                vertices[i]     = new SegmentPoint(points[i], this);
-                losVertices[i]  = new SegmentPoint(points[i], this);
+                vertices[i] = new SegmentPoint(points[i], this);
+                losVertices[i] = new SegmentPoint(points[i], this);
 
             }
             for (int i = 0; i < 4; i++)
@@ -443,7 +444,7 @@ namespace Barotrauma.Lights
                 //one vertex on the hull
                 shadowVertices[i] = new VertexPositionColor();
                 shadowVertices[i].Color = los ? Color.Black : Color.Transparent;
-                shadowVertices[i].Position = vertexPos+ offset;
+                shadowVertices[i].Position = vertexPos + offset;
 
                 //one extruded by the light direction
                 shadowVertices[j] = new VertexPositionColor();
@@ -451,7 +452,7 @@ namespace Barotrauma.Lights
 
                 Vector3 L2P = vertexPos - new Vector3(lightSourcePos, 0);
                 L2P.Normalize();
-                
+
                 shadowVertices[j].Position = new Vector3(lightSourcePos, 0) + L2P * 9000 + offset;
 
                 svCount += 2;
@@ -567,7 +568,7 @@ namespace Barotrauma.Lights
 
             return list;
         }
-        
+
         public void Remove()
         {
             var chList = HullLists.Find(x => x.Submarine == parentEntity.Submarine);

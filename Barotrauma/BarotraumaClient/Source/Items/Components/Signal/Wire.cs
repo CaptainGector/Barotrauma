@@ -53,7 +53,7 @@ namespace Barotrauma.Items.Components
 
             Vector2 drawOffset = Vector2.Zero;
             Submarine sub = item.Submarine;
-            if (IsActive && sub == null) // currently being rewired, we need to get the sub from the connections in case the wire has been taken outside
+            if (IsActive && sub == null) // currently being rewired, we need to get the sub from the connections in case the wire has been taken outside 
             {
                 if (connections[0] != null && connections[0].Item.Submarine != null) sub = connections[0].Item.Submarine;
                 if (connections[1] != null && connections[1].Item.Submarine != null) sub = connections[1].Item.Submarine;

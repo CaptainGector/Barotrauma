@@ -26,8 +26,7 @@
   <Item
     name="Medicine Cabinet"
     linkable="true"
-    pickdistance="150"
-    waterproof="true">
+    pickdistance ="150">
 
     <Sprite texture ="cabinets.png" depth="0.84" sourcerect="0,0,48,64" canflipx="false"/>
 
@@ -38,10 +37,9 @@
   </Item>
 
   <Item
-    name="Toxic Cabinet"
-    linkable="true"
-    pickdistance="150"
-    waterproof="true">
+   name="Toxic Cabinet"
+   linkable="true"
+   pickdistance ="150">
 
     <Sprite texture ="cabinets.png" depth="0.84" sourcerect="0,64,48,64" canflipx="false"/>
 
@@ -54,7 +52,7 @@
   <Item
     name="Metal Crate"
     linkable="true"
-    pickdistance="150">
+    pickdistance ="150">
 
     <Deconstruct time="20">
       <Item name="Steel Bar"/>
@@ -76,7 +74,7 @@
   <Item
    name="Explosive Crate"
    linkable="true"
-   pickdistance="150">
+   pickdistance ="150">
 
     <Deconstruct time="20">
       <Item name="Steel Bar"/>

@@ -10,6 +10,7 @@ namespace Barotrauma.Particles
 
         public DecalManager()
         {
+
             prefabs = new Dictionary<string, DecalPrefab>();
             foreach (string configFile in GameMain.Config.SelectedContentPackage.GetFilesOfType(ContentType.Decals))
             {
@@ -26,7 +27,6 @@ namespace Barotrauma.Particles
                     prefabs.Add(element.Name.ToString(), new DecalPrefab(element));
                 }
             }
-
         }
 
         public Decal CreateDecal(string decalName, float scale, Vector2 worldPosition, Hull hull)

@@ -16,6 +16,7 @@
             : base(preset, param)
         {
             Location[] locations = { GameMain.GameSession.StartLocation, GameMain.GameSession.EndLocation };
+
             if (param is string)
             {
                 mission = Mission.LoadRandom(locations, GameMain.NetLobbyScreen.LevelSeed, (string)param);

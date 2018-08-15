@@ -5,15 +5,15 @@ namespace Barotrauma.Items.Components
 {
     class AdderComponent : ItemComponent
     {
-        //an array to keep track of how long ago a signal was received on both inputs
+        //an array to keep track of how long ago a signal was received on both inputs 
         protected float[] timeSinceReceived;
 
         protected float[] receivedSignal;
 
 
-        //the output is sent if both inputs have received a signal within the timeframe
+        //the output is sent if both inputs have received a signal within the timeframe 
         protected float timeFrame;
-        
+
         [InGameEditable, Serialize(0.0f, true)]
         public float TimeFrame
         {
@@ -46,7 +46,7 @@ namespace Barotrauma.Items.Components
             }
         }
 
-        public override void ReceiveSignal(int stepsTaken, string signal, Connection connection, Item source, Character sender, float power=0.0f)
+        public override void ReceiveSignal(int stepsTaken, string signal, Connection connection, Item source, Character sender, float power = 0.0f)
         {
             switch (connection.Name)
             {

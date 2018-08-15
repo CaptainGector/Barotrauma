@@ -2,6 +2,7 @@
 using FarseerPhysics.Dynamics;
 using Microsoft.Xna.Framework;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Xml.Linq;
 
@@ -127,7 +128,7 @@ namespace Barotrauma.Items.Components
 
             if (Rand.Range(0.0f, 0.5f) > degreeOfSuccess)
             {
-                ApplyStatusEffects(ActionType.OnFailure, deltaTime, character);
+                ApplyStatusEffects(ActionType.OnFailure, deltaTime, character, character, "OnFailiure");
                 return false;
             }
 
@@ -168,11 +169,11 @@ namespace Barotrauma.Items.Components
             {
                 float particleAngle = item.body.Rotation + ((item.body.Dir > 0.0f) ? 0.0f : MathHelper.Pi);
                 ParticleEmitter.Emit(
-                    deltaTime, item.WorldPosition + TransformedBarrelPos, 
+                    deltaTime, item.WorldPosition + TransformedBarrelPos,
                     item.CurrentHull, particleAngle, -particleAngle);
             }
 #endif
-          
+
             return true;
         }
 
@@ -184,7 +185,7 @@ namespace Barotrauma.Items.Components
             if (ExtinquishAmount > 0.0f && item.CurrentHull != null)
             {
                 List<FireSource> fireSourcesInRange = new List<FireSource>();
-                //step along the ray in 10% intervals, collecting all fire sources in the range
+                //step along the ray in 10% intervals, collecting all fire sources in the range 
                 for (float x = 0.0f; x <= Submarine.LastPickedFraction; x += 0.1f)
                 {
                     Vector2 displayPos = ConvertUnits.ToDisplayUnits(rayStart + (rayEnd - rayStart) * x);
@@ -194,7 +195,7 @@ namespace Barotrauma.Items.Components
                     if (hull == null) continue;
                     foreach (FireSource fs in hull.FireSources)
                     {
-                        if (fs.IsInDamageRange(displayPos, 100.0f) && !fireSourcesInRange.Contains(fs))
+                        if (fs.IsInDamageRange(displayPos, 125.0f) && !fireSourcesInRange.Contains(fs))
                         {
                             fireSourcesInRange.Add(fs);
                         }
@@ -207,6 +208,7 @@ namespace Barotrauma.Items.Components
                 }
             }
 
+
             if (targetBody == null || targetBody.UserData == null) return;
 
             pickedPosition = Submarine.LastPickedPosition;
@@ -215,6 +217,7 @@ namespace Barotrauma.Items.Components
             Character targetCharacter;
             Limb targetLimb;
             Item targetItem;
+            string effectidentifier = "";
             if ((targetStructure = (targetBody.UserData as Structure)) != null)
             {
                 if (!fixableEntities.Contains("structure") && !fixableEntities.Contains(targetStructure.Name)) return;
@@ -225,10 +228,7 @@ namespace Barotrauma.Items.Components
 
 #if CLIENT
                 Vector2 progressBarPos = targetStructure.SectionPosition(sectionIndex);
-                if (targetStructure.Submarine != null)
-                {
-                    progressBarPos += targetStructure.Submarine.DrawPosition;
-                }
+                if (targetStructure.Submarine != null) progressBarPos += targetStructure.Submarine.DrawPosition;
 
                 var progressBar = user.UpdateHUDProgressBar(
                     targetStructure,
@@ -246,8 +246,63 @@ namespace Barotrauma.Items.Components
                     emitter.Emit(deltaTime, particlePos, item.CurrentHull, particleAngle + MathHelper.Pi, -particleAngle + MathHelper.Pi);
                 }
 #endif
+                /*
+                if (GameMain.Server != null)
+                {
+                    //Check if this tool is meant to destroy walls first and is a submarine body
+                    if (StructureFixAmount < 0f && user != null && targetStructure.Submarine != null)
+                    {
+                        //50% Remaining Integrity (Now has a gap!)
+                        if ((1f - (targetStructure.SectionDamage(sectionIndex) / targetStructure.Health)) >= 0.5f && (1f - ((targetStructure.SectionDamage(sectionIndex) + (-StructureFixAmount * degreeOfSuccess)) / targetStructure.Health)) < 0.5f)
+                        {
+                            //Respawn Shuttle
+                            if (targetStructure.Submarine == GameMain.Server?.respawnManager?.respawnShuttle)
+                            {
+                                GameMain.Server.ServerLog.WriteLine(user.LogName + " Cut a Hull piece on Respawn Shuttle: 50% Integrity.", Networking.ServerLog.MessageType.Attack);
+                            }
+                            //Coalition submarine
+                            else if (targetStructure.Submarine == Submarine.MainSubs[0])
+                            {
+                                GameMain.Server.ServerLog.WriteLine(user.LogName + " Cut a Hull piece on Coalition Submarine: 50% Integrity.", Networking.ServerLog.MessageType.Attack);
+                            }
+                            //Renegade Submarine
+                            else if (targetStructure.Submarine == Submarine.MainSubs[1])
+                            {
+                                GameMain.Server.ServerLog.WriteLine(user.LogName + " Cut a Hull piece on Renegade Submarine: 50% Integrity.", Networking.ServerLog.MessageType.Attack);
+                            }
+                            else
+                            {
+                                GameMain.Server.ServerLog.WriteLine(user.LogName + @" Cut a Hull piece on Shuttle """ + targetStructure.Submarine.Name + @"""" + ": 50% Integrity.", Networking.ServerLog.MessageType.Attack);
+                            }
+                        }
+                        //0% Remaining Integrity
+                        if ((1f - (targetStructure.SectionDamage(sectionIndex) / targetStructure.Health)) > 0.00f && (1f - ((targetStructure.SectionDamage(sectionIndex) + (-StructureFixAmount * degreeOfSuccess)) / targetStructure.Health)) < 0.00f)
+                        {
+                            //Respawn Shuttle
+                            if (targetStructure.Submarine == GameMain.Server?.respawnManager?.respawnShuttle)
+                            {
+                                GameMain.Server.ServerLog.WriteLine(user.LogName + " Cut a Hull piece on Respawn Shuttle: 0% Integrity.", Networking.ServerLog.MessageType.Attack);
+                            }
+                            //Coalition submarine
+                            else if (targetStructure.Submarine == Submarine.MainSubs[0])
+                            {
+                                GameMain.Server.ServerLog.WriteLine(user.LogName + " Cut a Hull piece on Coalition Submarine: 0% Integrity.", Networking.ServerLog.MessageType.Attack);
+                            }
+                            //Renegade Submarine
+                            else if (targetStructure.Submarine == Submarine.MainSubs[1])
+                            {
+                                GameMain.Server.ServerLog.WriteLine(user.LogName + " Cut a Hull piece on Renegade Submarine: 0% Integrity.", Networking.ServerLog.MessageType.Attack);
+                            }
+                            else
+                            {
+                                GameMain.Server.ServerLog.WriteLine(user.LogName + @" Cut a Hull piece on Shuttle """ + targetStructure.Submarine.Name + @"""" + ": 0% Integrity.", Networking.ServerLog.MessageType.Attack);
+                            }
+                        }
+                    }
+                }
+                */
 
-                targetStructure.AddDamage(sectionIndex, -StructureFixAmount * degreeOfSuccess, user);
+                targetStructure.AddDamage(sectionIndex, -StructureFixAmount * degreeOfSuccess,user);
 
                 //if the next section is small enough, apply the effect to it as well
                 //(to make it easier to fix a small "left-over" section)
@@ -263,12 +318,35 @@ namespace Barotrauma.Items.Components
                     }
                 }
             }
-            else if ((targetCharacter = (targetBody.UserData as Character)) != null)
+            else if ((targetLimb = (targetBody.UserData as Limb)) != null)
             {
-                targetCharacter.AddDamage(CauseOfDeath.Damage, -LimbFixAmount * degreeOfSuccess, user);
+                if (item.ContainedItems != null && item.ContainedItems.Length > 0)
+                {
+                    effectidentifier = item.Name + " (" + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")";
+                }
+                else
+                {
+                    effectidentifier = item.Name;
+                }
+
+                float previoushealth = targetLimb.character.Health;
+                targetLimb.character.AddDamage(CauseOfDeath.Damage, -LimbFixAmount * degreeOfSuccess, user, effectidentifier);
+                if(GameMain.NilMod.EnableGriefWatcher && NilMod.NilModGriefWatcher.PlayerIncapaciteDamage && 
+                    previoushealth > 0f && targetLimb.character.Health <= 0f)
+                {
+                    Barotrauma.Networking.Client attackingclient = GameMain.Server.ConnectedClients.Find(c => c.Character != null && c.Character == user);
+                    Barotrauma.Networking.Client targetclient = GameMain.Server.ConnectedClients.Find(c => c.Character != null && !c.Character.IsDead && c.Character == targetLimb.character);
+                    if (attackingclient != null && targetclient != null)
+                    {
+                        NilMod.NilModGriefWatcher.SendWarning(attackingclient.Character.LogName
+                                                    + " Incapacitated player " + targetclient.Character.LogName
+                                                    + " with " + effectidentifier, attackingclient);
+                    }
+                }
+
 #if CLIENT
                 Vector2 particlePos = ConvertUnits.ToDisplayUnits(pickedPosition);
-                if (targetCharacter.Submarine != null) particlePos += targetCharacter.Submarine.DrawPosition;
+                if (targetLimb.character.Submarine != null) particlePos += targetLimb.character.Submarine.DrawPosition; 
                 foreach (var emitter in ParticleEmitterHitCharacter)
                 {
                     float particleAngle = item.body.Rotation + ((item.body.Dir > 0.0f) ? 0.0f : MathHelper.Pi);
@@ -276,13 +354,34 @@ namespace Barotrauma.Items.Components
                 }
 #endif
             }
-            else if ((targetLimb = (targetBody.UserData as Limb)) != null)
+            else if ((targetCharacter = (targetBody.UserData as Character)) != null)
             {
-                targetLimb.character.AddDamage(CauseOfDeath.Damage, -LimbFixAmount * degreeOfSuccess, user);
+                if (item.ContainedItems != null && item.ContainedItems.Length > 0)
+                {
+                    effectidentifier = item.Name + " (" + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")";
+                }
+                else
+                {
+                    effectidentifier = item.Name;
+                }
 
+                float previoushealth = targetCharacter.Health;
+                targetCharacter.AddDamage(CauseOfDeath.Damage, -LimbFixAmount * degreeOfSuccess, user, effectidentifier);
+                if (GameMain.NilMod.EnableGriefWatcher && NilMod.NilModGriefWatcher.PlayerIncapaciteDamage &&
+                    previoushealth > 0f && targetCharacter.Health <= 0f)
+                {
+                    Barotrauma.Networking.Client attackingclient = GameMain.Server.ConnectedClients.Find(c => c.Character != null && c.Character == user);
+                    Barotrauma.Networking.Client targetclient = GameMain.Server.ConnectedClients.Find(c => c.Character != null && !c.Character.IsDead && c.Character == targetCharacter);
+                    if (attackingclient != null && targetclient != null)
+                    {
+                        NilMod.NilModGriefWatcher.SendWarning(attackingclient.Character.LogName
+                                                    + " Incapacitated player " + targetclient.Character.LogName
+                                                    + " with " + effectidentifier, attackingclient);
+                    }
+                }
 #if CLIENT
                 Vector2 particlePos = ConvertUnits.ToDisplayUnits(pickedPosition);
-                if (targetLimb.character.Submarine != null) particlePos += targetLimb.character.Submarine.DrawPosition;
+                if (targetCharacter.Submarine != null) particlePos += targetCharacter.Submarine.DrawPosition;
                 foreach (var emitter in ParticleEmitterHitCharacter)
                 {
                     float particleAngle = item.body.Rotation + ((item.body.Dir > 0.0f) ? 0.0f : MathHelper.Pi);
@@ -296,7 +395,16 @@ namespace Barotrauma.Items.Components
 
                 float prevCondition = targetItem.Condition;
 
-                ApplyStatusEffectsOnTarget(deltaTime, ActionType.OnUse, targetItem.AllPropertyObjects);
+                if (item.ContainedItems != null && item.ContainedItems.Length > 0)
+                {
+                    effectidentifier = item.Name + " (" + string.Join(", ", Array.FindAll(item.ContainedItems, i => i != null).Select(i => i.Name)) + ")";
+                }
+                else
+                {
+                    effectidentifier = item.Name;
+                }
+
+                ApplyStatusEffectsOnTarget(deltaTime, ActionType.OnUse, targetItem.AllPropertyObjects, user, effectidentifier);
 
 #if CLIENT
                 if (item.Condition != prevCondition)
@@ -312,7 +420,7 @@ namespace Barotrauma.Items.Components
                     if (progressBar != null) progressBar.Size = new Vector2(60.0f, 20.0f);
 
                     Vector2 particlePos = ConvertUnits.ToDisplayUnits(pickedPosition);
-                    if (targetItem.Submarine != null) particlePos += targetItem.Submarine.DrawPosition;
+                    if (targetItem.Submarine != null) particlePos += targetItem.Submarine.DrawPosition; 
                     foreach (var emitter in ParticleEmitterHitItem)
                     {
                         float particleAngle = item.body.Rotation + ((item.body.Dir > 0.0f) ? 0.0f : MathHelper.Pi);
@@ -322,7 +430,7 @@ namespace Barotrauma.Items.Components
 #endif
             }
         }
-
+        
         public override bool AIOperate(float deltaTime, Character character, AIObjectiveOperateItem objective)
         {
             Gap leak = objective.OperateTarget as Gap;
@@ -358,7 +466,7 @@ namespace Barotrauma.Items.Components
             return leak.Open <= 0.0f;
         }
 
-        private void ApplyStatusEffectsOnTarget(float deltaTime, ActionType actionType, List<ISerializableEntity> targets)
+        private void ApplyStatusEffectsOnTarget(float deltaTime, ActionType actionType, List<ISerializableEntity> targets, Character causecharacter = null, string identifier = "")
         {
             if (statusEffectLists == null) return;
 
@@ -369,7 +477,7 @@ namespace Barotrauma.Items.Components
             {
                 if (effect.Targets.HasFlag(StatusEffect.TargetType.UseTarget))
                 {
-                    effect.Apply(actionType, deltaTime, item, targets);
+                    effect.Apply(actionType, deltaTime, item, targets, causecharacter, identifier);
                 }
             }
         }

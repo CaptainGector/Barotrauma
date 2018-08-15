@@ -207,9 +207,9 @@ namespace Barotrauma
             dictionary.Clear();
         }
 
-        /// <summary>
-        /// Removes the entity from the entity dictionary and frees up the ID it was using.
-        /// </summary>
+        /// <summary> 
+        /// Removes the entity from the entity dictionary and frees up the ID it was using. 
+        /// </summary> 
         public void FreeID()
         {
             DebugConsole.Log("Removing entity " + ToString() + " (" + ID + ") from entity dictionary.");

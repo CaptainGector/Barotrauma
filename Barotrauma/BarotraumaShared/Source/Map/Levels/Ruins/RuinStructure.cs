@@ -56,6 +56,7 @@ namespace Barotrauma.RuinGeneration
         private static void Load()
         {
             list = new List<RuinStructure>();
+
             foreach (string configFile in GameMain.Config.SelectedContentPackage.GetFilesOfType(ContentType.RuinConfig))
             {
                 XDocument doc = XMLExtensions.TryLoadXml(configFile);
@@ -70,7 +71,7 @@ namespace Barotrauma.RuinGeneration
 
         public static RuinStructure GetRandom(RuinStructureType type, Alignment alignment)
         {
-            if (list == null)
+            if (list==null)
             {
                 DebugConsole.Log("Loading ruin structures...");
                 Load();

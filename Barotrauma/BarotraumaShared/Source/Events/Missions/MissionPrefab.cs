@@ -22,7 +22,7 @@ namespace Barotrauma
 
         public virtual string Description { get; private set; }
 
-        public bool MultiplayerOnly {  get; private set; }
+        public bool MultiplayerOnly { get; private set; }
         public bool SingleplayerOnly { get; private set; }
 
         public float Commonness { get; private set; }
@@ -102,7 +102,7 @@ namespace Barotrauma
             }
             constructor = missionType.GetConstructor(new[] { typeof(MissionPrefab), typeof(Location[]) });
         }
-        
+
         public Mission Instantiate(Location[] locations)
         {
             return constructor?.Invoke(new object[] { this, locations }) as Mission;

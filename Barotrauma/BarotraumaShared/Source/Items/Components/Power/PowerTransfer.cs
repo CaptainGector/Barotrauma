@@ -27,7 +27,6 @@ namespace Barotrauma.Items.Components
             }
         }
 
-
         private Dictionary<Connection, bool> connectionDirty = new Dictionary<Connection, bool>();
 
         //a list of connections a given connection is connected to, either directly or via other power transfer components
@@ -99,7 +98,7 @@ namespace Barotrauma.Items.Components
             }
         }
 
-        public override void Update(float deltaTime, Camera cam)
+        public override void Update(float deltaTime, Camera cam) 
         {
             RefreshConnections();
             if (!CanTransfer) return;
@@ -109,7 +108,7 @@ namespace Barotrauma.Items.Components
                 SetAllConnectionsDirty();
                 isBroken = false;
             }
-            
+
             if (updateCount > 0)
             {
                 //this junction box has already been updated this frame
@@ -143,17 +142,19 @@ namespace Barotrauma.Items.Components
                 pt.Item.SendSignal(0, "", "power", null, voltage);
                 pt.Item.SendSignal(0, "", "power_out", null, voltage);
 
-                //damage the item if voltage is too high 
-                //(except if running as a client)
-                if (GameMain.Client != null) continue;
+                //Nilmod Regenerate the health of a damaged junction over time
+                if (GameMain.NilMod.ElectricalRegenerateCondition && pt.item.Condition > 0f && pt.item.Condition < 100f) pt.item.Condition += deltaTime * GameMain.NilMod.ElectricalRegenAmount;
 
-                //relays don't blow up if the power is higher than load, only if the output is high enough 
-                //(i.e. enough power passing through the relay)
+                //relays don't blow up if the power is higher than load, only if the output is high enough  
+                //(i.e. enough power passing through the relay) 
                 if (this is RelayComponent) continue;
-                if (-pt.currPowerConsumption < Math.Max(pt.powerLoad * Rand.Range(1.9f, 2.1f), 200.0f)) continue;
+                if (-pt.currPowerConsumption < Math.Max(pt.powerLoad * Rand.Range(GameMain.NilMod.ElectricalOverloadVoltRangeMin, GameMain.NilMod.ElectricalOverloadVoltRangeMax), GameMain.NilMod.ElectricalOverloadMinPower)) continue;
 
+                //damage the item if voltage is too high  
+                //(except if running as a client) 
+                if (GameMain.Client != null) continue;
                 float prevCondition = pt.item.Condition;
-                pt.item.Condition -= deltaTime * 10.0f;
+                pt.item.Condition -= deltaTime * GameMain.NilMod.ElectricalOverloadDamage;
 
                 if (pt.item.Condition <= 0.0f && prevCondition > 0.0f)
                 {
@@ -170,7 +171,7 @@ namespace Barotrauma.Items.Components
                     }
 #endif
 
-                    if (FireProbability > 0.0f && Rand.Int((int)(1.0f / FireProbability)) == 1)
+                    if ((GameMain.NilMod.ElectricalOverloadFiresChance / 100f) > 0.0f && Rand.Int((int)(1.0f / (GameMain.NilMod.ElectricalOverloadFiresChance / 100f))) == 1)
                     {
                         new FireSource(pt.item.WorldPosition);
                     }
@@ -218,7 +219,7 @@ namespace Barotrauma.Items.Components
                 connected.Add(c);
                 GetConnected(c, connected);
                 connectedRecipients[c] = connected;
-
+                
                 //go through all the PowerTransfers and we're connected to and set their connections to match the ones we just calculated
                 //(no need to go through the recursive GetConnected method again)
                 foreach (Connection recipient in connected)
@@ -239,7 +240,7 @@ namespace Barotrauma.Items.Components
 
         //Finds all the connections that can receive a signal sent into the given connection and stores them in the hashset.
         private void GetConnected(Connection c, HashSet<Connection> connected)
-        {
+        {            
             var recipients = c.Recipients;
 
             foreach (Connection recipient in recipients)
@@ -256,7 +257,7 @@ namespace Barotrauma.Items.Components
                 {
                     GetConnected(recipient, connected);
                 }
-            }
+            }            
         }
 
         //a recursive function that goes through all the junctions and adds up
@@ -267,6 +268,7 @@ namespace Barotrauma.Items.Components
             {
                 updateCount = 1;
             }
+
             connectedList.Add(this);
 
             ApplyStatusEffects(ActionType.OnActive, deltaTime, null);
@@ -288,7 +290,6 @@ namespace Barotrauma.Items.Components
                     {
                         if (powered == null || !powered.IsActive) continue;
                         if (connectedList.Contains(powered)) continue;
-
                         PowerTransfer powerTransfer = powered as PowerTransfer;
                         if (powerTransfer != null)
                         {
@@ -327,8 +328,8 @@ namespace Barotrauma.Items.Components
                                 if (!inputOnly) fullLoad += powered.CurrPowerConsumption;
                             }
                             else if (powered.CurrPowerConsumption < 0.0f)
-                            //negative power consumption = the construction is a 
-                            //generator/battery or another junction box
+                            //negative power consumption = the construction is a  
+                            //generator/battery or another junction box 
                             {
                                 fullPower -= powered.CurrPowerConsumption;
                             }
@@ -358,7 +359,7 @@ namespace Barotrauma.Items.Components
         public override void OnItemLoaded()
         {
             var connections = Item.Connections;
-            powerConnections = connections == null ? new List<Connection>() : connections.FindAll(c => c.IsPower);  
+            powerConnections = connections == null ? new List<Connection>() : connections.FindAll(c => c.IsPower);
             if (connections == null)
             {
                 IsActive = false;
@@ -366,7 +367,7 @@ namespace Barotrauma.Items.Components
             }
             SetAllConnectionsDirty();
         }
-        
+
         public override void ReceiveSignal(int stepsTaken, string signal, Connection connection, Item source, Character sender, float power)
         {
             if (connection.IsPower) return;
@@ -383,8 +384,8 @@ namespace Barotrauma.Items.Components
 
                     foreach (ItemComponent ic in recipient.Item.components)
                     {
-                        //powertransfer components don't need to receive the signal in the pass-through signal connections
-                        //because we relay it straight to the connected items without going through the whole chain of junction boxes
+                        //powertransfer components don't need to receive the signal in the pass-through signal connections 
+                        //because we relay it straight to the connected items without going through the whole chain of junction boxes 
                         if (ic is PowerTransfer && connection.Name.Contains("signal")) continue;
                         ic.ReceiveSignal(stepsTaken, signal, recipient, source, sender, 0.0f);
                     }

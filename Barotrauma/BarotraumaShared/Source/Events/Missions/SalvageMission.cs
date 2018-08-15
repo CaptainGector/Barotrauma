@@ -8,7 +8,7 @@ namespace Barotrauma
     {
         private ItemPrefab itemPrefab;
 
-        private Item item;
+        public Item item;
 
         private Level.PositionType spawnPositionType;
 

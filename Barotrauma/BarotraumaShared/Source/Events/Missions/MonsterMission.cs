@@ -9,7 +9,7 @@ namespace Barotrauma
 
         private int state;
 
-        private Character monster;
+        public Character monster;
 
         private Vector2 radarPosition;
 

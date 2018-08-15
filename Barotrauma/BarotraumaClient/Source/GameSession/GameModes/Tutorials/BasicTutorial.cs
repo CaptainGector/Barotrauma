@@ -318,14 +318,14 @@ namespace Barotrauma.Tutorials
             {
                 steering.TargetVelocity = Vector2.Zero;
 
-                slowdownTimer = Math.Max(0.0f, slowdownTimer - CoroutineManager.DeltaTime * 0.3f);
+                slowdownTimer = Math.Max(0.0f, slowdownTimer - CoroutineManager.DeltaTime*0.3f);
                 Submarine.MainSub.Velocity *= slowdownTimer;
 
                 moloch.AIController.SelectTarget(steering.Item.CurrentHull.AiTarget);
                 Vector2 steeringDir = windows[0].WorldPosition - moloch.WorldPosition;
                 if (steeringDir != Vector2.Zero) steeringDir = Vector2.Normalize(steeringDir);
 
-                moloch.AIController.SteeringManager.SteeringManual(CoroutineManager.DeltaTime, steeringDir * 100.0f);
+                moloch.AIController.SteeringManager.SteeringManual(CoroutineManager.DeltaTime, steeringDir*100.0f);
 
                 foreach (Structure window in windows)
                 {
@@ -376,7 +376,7 @@ namespace Barotrauma.Tutorials
 
             //wait until the player is out of the room and the doors are closed
             while (Controlled.WorldPosition.X > commandDoor1.Item.WorldPosition.X ||
-                (commandDoor1.IsOpen || commandDoor2.IsOpen))
+                (commandDoor1.IsOpen || (commandDoor2.IsOpen)))
             {
                 //prevent the hull from filling up completely and crushing the player
                 steering.Item.CurrentHull.WaterVolume = Math.Min(steering.Item.CurrentHull.WaterVolume, steering.Item.CurrentHull.Volume * 0.9f);

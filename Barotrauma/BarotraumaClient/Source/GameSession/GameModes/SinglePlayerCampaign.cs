@@ -194,6 +194,8 @@ namespace Barotrauma
                     Map.MoveToNextLocation();
                 }
 
+                Money += GameMain.NilMod.CampaignSurvivalReward;
+
                 SaveUtil.SaveGame(GameMain.GameSession.SavePath);
             }
 
@@ -283,7 +285,7 @@ namespace Barotrauma
         {
             while (cinematic.Running)
             {
-                if (Submarine.MainSub == null) yield return CoroutineStatus.Success;                
+                if (Submarine.MainSub == null) yield return CoroutineStatus.Success;
 
                 yield return CoroutineStatus.Running;
             }
